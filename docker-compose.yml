@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./prototype/backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./prototype/backend:/app
+      - ./prototype/data:/data
+      - ./prototype/models:/models
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/orphan_repurpose.db
+      - KUZU_DB_PATH=/data/kuzu_db
+      - CHROMA_DB_PATH=/data/chroma_db
+      - DATA_DIR=/data
+      - MODELS_DIR=/models
+      - PYTHONPATH=/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./prototype/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./prototype/frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    command: npm run dev -- --host 0.0.0.0 --port 3000
+    depends_on:
+      - backend
+
+networks:
+  default:
+    name: orphan-repurpose-network

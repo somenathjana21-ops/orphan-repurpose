@@ -2,32 +2,33 @@
 
 ## 0. Quick Resume (≤10 lines: where am I, what's next, active project path)
 - **Mission**: Build OrphanRepurpose — AI-powered drug repurposing platform for rare/orphan diseases
-- **Current Phase**: Phase 3 — Solution, Business Plan & Documentation (0% complete)
+- **Current Phase**: Phase 5 — Build (Iterative, Milestone by Milestone) (0% complete)
 - **Active Path**: /workspace/dev/orphan-repurpose/
-- **Next Action**: Write docs 02-07, 12-13 (Solution Concept, Business Plan, PRD, Architecture, Data/Models, Regulatory, Risks, Roadmap)
+- **Next Action**: Begin M1 — KG v1 + API (ETL pipelines, Kuzu KG, RGCN embeddings, disease browser)
 
 ## 1. Mission & Chosen Opportunity (1 paragraph + why)
 **OrphanRepurpose** — An AI-powered platform that identifies and validates drug repurposing opportunities for rare and orphan diseases by integrating a curated rare-disease knowledge graph, multimodal public datasets (DrugCentral, TDC, FAERS, ClinicalTrials.gov, PubMed, ChEMBL), and clinician-in-the-loop explainable AI. The platform outputs prioritized, validation-ready repurposing candidates with audit trails suitable for FDA Orphan Drug Designation submissions. **Why**: Highest weighted score (4.70/5.0) across all criteria. Unmatched prototype feasibility with 6+ public datasets. Strongest pain/WTP via Orphan Drug Act incentives (7-yr exclusivity, tax credits). Regulatory tailwind from FDA repurposing approvals + orphan pathways. Differentiation white space: PatSnap 2026 shows rare/orphan "underserved" vs COVID-19/oncology dominance. Defensible moat via curated KG + clinician feedback loops + explainable audit trail. Lower regulatory risk: approved drugs = known safety, no novel tox.
 
 ## 2. Current Phase & Status
-- **Phase**: Phase 3 — Solution, Business Plan & Documentation
-- **% Complete**: 0%
+- **Phase**: Phase 5 — Build (Iterative, Milestone by Milestone)
+- **% Complete**: 0% (Phase 3-4 docs complete)
 - **Health**: 🟢
 
 ## 3. Next Actions (ordered checklist, top item = what to do immediately)
-1. [ ] Write docs/02_solution_concept.md — solution definition, value prop, core workflow
-2. [ ] Write docs/03_business_plan.md — exec summary, problem, solution, market sizing, competitors, business model, GTM, financials, funding, team, milestones, risks, exit
-3. [ ] Write docs/04_PRD.md — product requirements, user stories, acceptance criteria
-4. [ ] Write docs/05_architecture.md — system design, Mermaid diagrams, tech stack justification
-5. [ ] Write docs/06_data_and_models.md — datasets, models, evaluation metrics, baselines
-6. [ ] Write docs/07_regulatory_compliance.md — FDA/EMA AI guidance mapping, GxP, 21 CFR Part 11, HIPAA/GDPR
-7. [ ] Write docs/12_risks_and_mitigations.md — technical, regulatory, market, operational risks
-8. [ ] Write docs/13_roadmap.md — 90-day, 1-year, 3-year milestones
-9. [ ] Commit all docs, send Progress Report #1
+1. [ ] **M1: KG v1 + API** — ETL pipelines for 8 datasets, Kuzu KG build, RGCN embeddings, GraphQL/REST API, Disease browser frontend
+2. [ ] **M2: Indication Model v1** — GraphSAGE drug encoder, cross-attention fusion, calibration, batch inference, candidate API, CandidateList frontend
+3. [ ] **M3: Explainability Stack** — KG path extraction (Yen's k-shortest), SHAP, counterfactuals, BioMistral-7B LLM rationale, ExplanationPanel
+4. [ ] **M4: Safety Filter** — FAERS ROR/PRR/BCPNN, TDC ADMET pre-compute, contraindications, SafetyDashboard
+5. [ ] **M5: Validation UI** — Simulated clinician validation, self-assessment, immutable audit log (hash chain)
+6. [ ] **M6: Dossier Generator** — Jinja2 templates, 7-step credibility map, PDF (WeasyPrint) + JSON export
+7. [ ] **M7: Pilot Integration** — Full pipeline demo, 3 pilot partners, case studies
+8. [ ] **M8: Series A Ready** — 10 customers, $750K ARR, TDC top 10, team 18 FTE
 
 ## 4. Decision Log (date | decision | alternatives | rationale | ADR link)
 - 2026-10-08 | Selected OrphanRepurpose as primary venture | 7 other candidates scored | Highest weighted score (4.70), best feasibility/pain/regulatory intersection | docs/adr/ADR-001-idea-selection.md
 - 2026-10-08 | Runner-up: CredibleADMET (ADMET + credibility framework) | — | Fallback if OrphanRepurpose infeasible during build | docs/adr/ADR-001-idea-selection.md
+- 2026-10-08 | Kuzu embedded for KG (vs Neo4j) | Neo4j Docker | Zero-dep, simpler deployment, Cypher-compatible | docs/05_architecture.md
+- 2026-10-08 | BioMistral-7B 4-bit GGUF for LLM rationale | PubMedBERT fine-tuned | Generative rationale, local CPU inference, biomedical domain | docs/05_architecture.md, docs/08_prototype_plan.md
 
 ## 5. Assumptions (things I decided without user input; revisit flags)
 - Rare/orphan focus is the right wedge (vs broad repurposing) — revisit if market too small
@@ -35,6 +36,8 @@
 - Clinician-in-the-loop validation is feasible for prototype (simulated) — revisit if UI complexity high
 - FDA Orphan Drug Designation pathway is the right regulatory hook — revisit if EMA-only strategy needed
 - Python/React stack with TDC/DrugCentral APIs — revisit if performance issues
+- Kuzu embedded handles KG scale — revisit if performance/query issues
+- BioMistral-7B runs acceptably on CPU — revisit if latency >5 sec
 
 ## 6. Knowledge Base
 ### 6.1 Domain facts (with source URLs + date accessed)
@@ -78,14 +81,19 @@
 - Public dataset chemical space similarity to real discovery low (<0.4 vs ChEMBL)
 - RDKit for molecular featurization, PyTorch/PyG for GNNs
 - NetworkX for knowledge graph construction
+- Kuzu embedded: `pip install kuzu`, Cypher queries, Python bindings
+- BioMistral-7B GGUF: `llama-cpp-python` for inference, ~4GB RAM
+- WeasyPrint for HTML→PDF: requires system fonts, CSS paged media
 
 ## 7. Open Questions / Unknowns (and how I plan to resolve them)
-- What specific rare diseases to prioritize for MVP? → Use Orphanet prevalence + unmet need scoring
-- How to simulate clinician-in-the-loop for prototype? → Build validation UI with mock expert feedback
-- What explainability method for audit trail? → SHAP + counterfactual + KG path explanation
+- What specific rare diseases to prioritize for MVP? → Use Orphanet prevalence + unmet need scoring (NPC first)
+- How to simulate clinician-in-the-loop for prototype? → Build validation UI with mock expert feedback (3 personas)
+- What explainability method for audit trail? → SHAP + counterfactual + KG path explanation (implemented)
 - How to handle DrugCentral post-2012 license restriction? → Use pre-2012 open data + synthetic for newer
 - TDC leaderboard submission process for benchmarking? → Follow TDC protocol, use scaffold splits
-- FDA credibility framework mapping to product features? → Map 7 steps to specific UI/model outputs
+- FDA credibility framework mapping to product features? → Map 7 steps to specific UI/model outputs (done in doc 07)
+- Kuzu performance on full KG? → Test during M1; fallback to Neo4j if needed
+- BioMistral-7B latency on CPU? → Test during M3; fallback to smaller model if >5 sec
 
 ## 8. Lessons Learned (mistakes, what to do differently)
 - (will populate during execution)
@@ -97,4 +105,7 @@
 - 2026-10-08: Phase 1 complete — 8 candidates researched with ≥2 sources each, saved to research/
 - 2026-10-08: Phase 2 complete — Scored all candidates, selected OrphanRepurpose (4.70), runner-up CredibleADMET
 - 2026-10-08: Created project directory /workspace/dev/orphan-repurpose/, git init, committed Brain.md + ADR-001
-- 2026-10-08: Starting Phase 3 — Solution, Business Plan & Documentation
+- 2026-10-08: Phase 3 complete — All 10 docs written (02-07, 12-13)
+- 2026-10-08: Phase 4 complete — Prototype plan (doc 08) with milestones, traceability, test strategy
+- 2026-10-08: All docs committed to git (commit fcaa0d3)
+- 2026-10-08: Starting Phase 5 — Build: M1 KG v1 + API
