@@ -373,49 +373,72 @@ def _get_mock_candidates(disease_id: str) -> List[Candidate]:
 async def generate_dossier(request: DossierRequest):
     """Generate an Orphan Drug Designation dossier."""
     try:
-        audit_trail_id = str(uuid.uuid4())
+        import uuid as uuid_mod
+        audit_trail_id = str(uuid_mod.uuid4())
+        
+        # Try real data first
+        try:
+            from app.services.dossier_service import get_dossier_service
+            from app.services.indication_service import get_indication_service
+            from app.api.v1.diseases import _DISEASE_BY_ID, _to_detail
+            
+            disease = _to_detail(_DISEASE_BY_ID.get(request.disease_id, {}))
+            if not disease:
+                raise HTTPException(status_code=404, detail=f"Disease {request.disease_id} not found")
+            
+            # Get real candidates from model
+            ind_svc = get_indication_service()
+            if ind_svc.is_ready():
+                umls_key = f"UMLS:{disease.description}" if disease.description else disease.orpha_id
+                # Try to find the disease key in the model
+                scores = []
+                for key in ind_svc.disease_map:
+                    if request.disease_id in key or disease.name in key:
+                        scores = ind_svc.score_drugs(key, top_k=20)
+                        break
+                
+                if scores:
+                    from app.api.v1.candidates import _candidate_from_score
+                    candidates = [_candidate_from_score(i + 1, s) for i, s in enumerate(scores)]
+                    if request.candidate_ids:
+                        candidates = [c for c in candidates if c.candidate_id in request.candidate_ids]
+                else:
+                    candidates = []
+            else:
+                candidates = []
+            
+            sections = request.include_sections or ["background", "drug_profile", "mechanistic_rationale", "preclinical_plan", "regulatory_strategy"]
+            
+            dossier_svc = get_dossier_service()
+            result = dossier_svc.generate_dossier(disease, candidates, sections, audit_trail_id)
+            
+            logger.info("dossier_generated_from_model", disease_id=request.disease_id, n_candidates=len(candidates))
+            return DossierResponse(**result)
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning("real_data_dossier_failed_using_mock", error=str(e))
+        
+        # Fallback to mock data
         disease = _get_mock_disease(request.disease_id)
         if not disease:
             raise HTTPException(status_code=404, detail=f"Disease {request.disease_id} not found")
         
         candidates = _get_mock_candidates(request.disease_id)
-        # Filter by candidate_ids if provided
         if request.candidate_ids:
             candidates = [c for c in candidates if c.candidate_id in request.candidate_ids]
         
-        # Default all sections if none specified
         sections = request.include_sections or ["background", "drug_profile", "mechanistic_rationale", "preclinical_plan", "regulatory_strategy"]
         
-        # Generate HTML
-        html = _generate_dossier_html(disease, candidates, sections, audit_trail_id)
+        # Use DossierService for consistency
+        from app.services.dossier_service import get_dossier_service
+        dossier_svc = get_dossier_service()
+        result = dossier_svc.generate_dossier(disease, candidates, sections, audit_trail_id)
         
-        # Generate PDF
-        pdf_bytes = _html_to_pdf(html)
-        pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+        logger.info("dossier_generated_from_mock", disease_id=request.disease_id, audit_trail_id=audit_trail_id)
         
-        # Build JSON response
-        dossier_json = DossierJSON(
-            disease=disease,
-            candidates=candidates,
-            sections={
-                "background": f"{disease.name} is a rare genetic disorder...",
-                "drug_profile": f"Top candidate: {candidates[0].drug_name}" if candidates else "No candidates",
-                "mechanistic_rationale": candidates[0].llm_rationale if candidates else "",
-                "preclinical_plan": "Recommended preclinical studies...",
-                "regulatory_strategy": "Orphan Drug Designation under 21 CFR Part 316",
-                "credibility_map": _generate_credibility_map(),
-            },
-            generated_at=datetime.now(timezone.utc).isoformat(),
-            disclaimer="RESEARCH PROTOTYPE — Not for clinical use. This dossier requires expert review before any regulatory submission.",
-        )
-        
-        logger.info("dossier_generated", disease_id=request.disease_id, audit_trail_id=audit_trail_id)
-        
-        return DossierResponse(
-            pdf_base64=pdf_base64,
-            dossier_json=dossier_json,
-            audit_trail_id=audit_trail_id,
-        )
+        return DossierResponse(**result)
     except HTTPException:
         raise
     except Exception as e:
