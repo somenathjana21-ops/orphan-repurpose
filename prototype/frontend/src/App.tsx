@@ -4,6 +4,7 @@ import { DiseaseDetail } from './components/DiseaseDetail'
 import { CandidateList } from './components/CandidateList'
 import { CandidateDetail } from './components/CandidateDetail'
 import { DossierBuilder } from './components/DossierBuilder'
+import { CaseStudies } from './components/CaseStudies'
 import { DisclaimerBanner } from './components/DisclaimerBanner'
 import { Layout } from './components/Layout'
 
@@ -18,6 +19,7 @@ function App() {
           <Route path="/diseases/:orphaId/candidates" element={<CandidateList />} />
           <Route path="/candidates/:candidateId" element={<CandidateDetail />} />
           <Route path="/dossier" element={<DossierBuilder />} />
+          <Route path="/case-studies" element={<CaseStudies />} />
         </Routes>
       </Layout>
     </div>

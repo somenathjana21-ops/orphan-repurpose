@@ -8,6 +8,7 @@ const navigation = [
   { name: 'Diseases', href: '/diseases', icon: FlaskConical },
   { name: 'Candidates', href: '/candidates', icon: FlaskConical },
   { name: 'Dossiers', href: '/dossier', icon: FileText },
+  { name: 'Case Studies', href: '/case-studies', icon: FlaskConical },
 ]
 
 export function Layout({ children }: { children?: ReactNode }) {

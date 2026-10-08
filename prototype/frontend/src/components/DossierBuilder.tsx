@@ -180,8 +180,16 @@ export function DossierBuilder() {
               <div className="flex gap-3">
                 <button
                   onClick={() => {
-                    // In a real app, we'd trigger a download of the PDF
-                    alert('PDF download would be triggered here (base64: ' + dossier.pdf_base64.substring(0, 50) + '...)')
+                    const binary = atob(dossier.pdf_base64)
+                    const bytes = new Uint8Array(binary.length)
+                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+                    const blob = new Blob([bytes], { type: 'application/pdf' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `dossier_${dossier.audit_trail_id.slice(0, 8)}.pdf`
+                    a.click()
+                    URL.revokeObjectURL(url)
                   }}
                   className="btn-secondary"
                 >
@@ -189,8 +197,13 @@ export function DossierBuilder() {
                 </button>
                 <button
                   onClick={() => {
-                    // In a real app, we'd trigger a download of the JSON
-                    alert('JSON download would be triggered here: ' + JSON.stringify(dossier.dossier_json, null, 2))
+                    const blob = new Blob([JSON.stringify(dossier.dossier_json, null, 2)], { type: 'application/json' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `dossier_${dossier.audit_trail_id.slice(0, 8)}.json`
+                    a.click()
+                    URL.revokeObjectURL(url)
                   }}
                   className="btn-secondary"
                 >
