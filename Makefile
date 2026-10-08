@@ -170,17 +170,11 @@ literature-index:
 # =============================================================================
 # MODEL TRAINING
 # =============================================================================
-model-train: train-kg-embeddings train-indication-model
-
-train-kg-embeddings:
-	@echo "🧠 Training KG embeddings (RGCN)..."
-	# TODO: Train RGCN on KG
-	@echo "KG embeddings training complete (placeholder)"
+model-train: kg-embeddings train-indication-model
 
 train-indication-model:
-	@echo "🧠 Training indication prediction model..."
-	# TODO: Train dual-encoder cross-attention model
-	@echo "Indication model training complete (placeholder)"
+	@echo "🧠 Training indication prediction model (DualEncoderCrossAttention)..."
+	python ./prototype/scripts/etl/train_indication_model.py $(PROCESSED_DIR) $(MODELS_DIR)/kg_embeddings.pkl $(MODELS_DIR)/indication_model.pt
 
 # =============================================================================
 # FULL SETUP

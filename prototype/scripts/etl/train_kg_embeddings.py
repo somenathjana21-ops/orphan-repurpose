@@ -108,7 +108,6 @@ def load_kg_for_training(kuzu_db_path: Path) -> HeteroData:
         ("Gene", "IN_PATHWAY", "Pathway"),
         ("Drug", "HAS_STRUCTURE", "MolecularStructure"),
     ]
-    
     for src, rel, dst in edge_types:
         if node_counts.get(src, 0) == 0 or node_counts.get(dst, 0) == 0:
             continue

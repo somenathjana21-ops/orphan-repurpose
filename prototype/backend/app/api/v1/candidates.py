@@ -5,270 +5,239 @@ from app.models.disease import Candidate, SafetyFlags, FAERSSignal, CandidateGen
 logger = structlog.get_logger()
 router = APIRouter()
 
-# Mock data for candidates
-MOCK_CANDIDATES = [
-    Candidate(
-        candidate_id="cand_001",
-        drug_id="CHEMBL1200",
-        drug_name="Miglustat",
-        indication_probability=0.85,
-        confidence_interval=[0.75, 0.92],
-        moa_summary="Inhibits glucosylceramide synthase, reducing glycosphingolipid accumulation",
-        safety_flags=SafetyFlags(
-            faers_signals=[
-                FAERSSignal(
-                    reaction="Diarrhea",
-                    meddra_pt="Diarrhea",
-                    ror=1.2,
-                    prr=1.1,
-                    bcpnn=0.8,
-                    n_reports=45,
-                    level="caution"
-                )
-            ],
-            admet_predictions={
-                "logP": 0.5,
-                "logS": -2.1,
-                "BBB": 0.8,
-                "CYP2D6": 0.1,
-                "CYP3A4": 0.3
-            },
+# Drug metadata for the demo drugs (name, moa, safety) keyed by KG drug id
+DRUG_META = {
+    "drugcentral:1001": {
+        "name": "Miglustat",
+        "moa": "Inhibits glucosylceramide synthase, reducing glycosphingolipid accumulation",
+        "rationale": "Miglustat inhibits glucosylceramide synthase, which is upregulated in Niemann-Pick type C due to impaired cholesterol trafficking. Reducing glycosphingolipid accumulation mitigates lysosomal storage.",
+        "safety": SafetyFlags(
+            faers_signals=[FAERSSignal(reaction="Diarrhea", meddra_pt="Diarrhea", ror=1.2, prr=1.1, bcpnn=0.8, n_reports=45, level="caution")],
+            admet_predictions={"logP": 0.5, "logS": -2.1, "BBB": 0.8, "CYP2D6": 0.1, "CYP3A4": 0.3},
             contraindications=["Severe hepatic impairment"],
-            overall="caution"
+            overall="caution",
         ),
-        kg_paths=[
-            {
-                "nodes": [
-                    {"id": "CHEMBL1200", "type": "drug", "name": "Miglustat", "properties": {}},
-                    {"id": "GO:0008603", "type": "biological_process", "name": "glucosylceramide metabolic process", "properties": {}},
-                    {"id": "HP:0007325", "type": "phenotype", "name": "Hepatosplenomegaly", "properties": {}}
-                ],
-                "edges": [
-                    {"source": "CHEMBL1200", "target": "GO:0008603", "type": "inhibits", "weight": 0.9},
-                    {"source": "GO:0008603", "target": "HP:0007325", "type": "associated_with", "weight": 0.8}
-                ],
-                "score": 0.85
-            }
+    },
+    "drugcentral:1002": {
+        "name": "Sirolimus",
+        "moa": "Inhibits mTOR, restoring autophagic flux and reducing lipid accumulation",
+        "rationale": "Sirolimus inhibits mTOR, which regulates autophagy. In Niemann-Pick type C, autophagy dysfunction contributes to lipid accumulation; inhibiting mTOR may restore autophagic flux.",
+        "safety": SafetyFlags(
+            faers_signals=[FAERSSignal(reaction="Hyperlipidemia", meddra_pt="Hyperlipidemia", ror=1.8, prr=1.6, bcpnn=1.4, n_reports=120, level="fail")],
+            admet_predictions={"logP": 2.0, "logS": -3.2, "BBB": 0.6, "CYP2D6": 0.0, "CYP3A4": 0.9},
+            contraindications=["Active infection", "Severe hepatic impairment"],
+            overall="fail",
+        ),
+    },
+    "drugcentral:1003": {
+        "name": "Ivacaftor",
+        "moa": "CFTR potentiator that increases channel open probability",
+        "rationale": "Ivacaftor potentiates the CFTR channel, defective in cystic fibrosis due to CFTR mutations, increasing chloride transport and improving airway surface hydration.",
+        "safety": SafetyFlags(
+            faers_signals=[FAERSSignal(reaction="Elevated liver enzymes", meddra_pt="Hepatic enzyme increased", ror=1.3, prr=1.2, bcpnn=0.9, n_reports=60, level="caution")],
+            admet_predictions={"logP": 4.5, "logS": -4.8, "BBB": 0.1, "CYP2D6": 0.7, "CYP3A4": 0.8},
+            contraindications=[],
+            overall="pass",
+        ),
+    },
+    "drugcentral:1036": {
+        "name": "Everolimus",
+        "moa": "mTOR inhibitor, antiproliferative",
+        "rationale": "Everolimus inhibits mTOR signalling, which is hyperactivated in tuberous sclerosis complex due to TSC1/TSC2 mutations. This reduces aberrant cell proliferation.",
+        "safety": SafetyFlags(
+            faers_signals=[FAERSSignal(reaction="Stomatitis", meddra_pt="Stomatitis", ror=2.1, prr=1.9, bcpnn=1.6, n_reports=210, level="caution")],
+            admet_predictions={"logP": 4.1, "logS": -4.2, "BBB": 0.3, "CYP2D6": 0.1, "CYP3A4": 0.95},
+            contraindications=["Active infection"],
+            overall="caution",
+        ),
+    },
+}
+
+DEFAULT_SAFETY = SafetyFlags(
+    faers_signals=[],
+    admet_predictions={},
+    contraindications=[],
+    overall="caution",
+)
+
+# ORPHA id -> UMLS CUI (the disease key used by the trained model)
+ORPHA_TO_UMLS = {
+    "ORPHA:635": "UMLS:C0028042",
+    "ORPHA:793": "UMLS:C0010674",
+    "ORPHA:98065": "UMLS:C0020179",
+    "ORPHA:399": "UMLS:C0017205",
+    "ORPHA:310": "UMLS:C0041341",
+}
+
+DRUG_ID_TO_ORPHA = {v: k for k, v in ORPHA_TO_UMLS.items()}
+
+
+def _load_drug_meta() -> dict:
+    """Load drug names/MoA from the processed DrugCentral parquet at import time."""
+    from pathlib import Path
+    import pandas as pd
+
+    meta: dict = {}
+    candidates = [
+        Path("../data/processed/drugcentral/drugcentral_fda_approved.parquet"),
+        Path("data/processed/drugcentral/drugcentral_fda_approved.parquet"),
+    ]
+    for path in candidates:
+        if path.exists():
+            try:
+                df = pd.read_parquet(path)
+                for _, row in df.iterrows():
+                    meta[f"drugcentral:{row['struct_id']}"] = {
+                        "name": row.get("name") or f"Drug {row['struct_id']}",
+                        "moa": row.get("moa_classes") or "Mechanism not annotated",
+                        "gene": row.get("gene") or "",
+                    }
+                break
+            except Exception:
+                continue
+    return meta
+
+
+_DRUG_META_LOADED = _load_drug_meta()
+
+
+def _build_kg_path(drug_id: str, drug_name: str, disease_name: str) -> list:
+    """Construct a representative KG path drug -> target -> phenotype."""
+    return [{
+        "nodes": [
+            {"id": drug_id, "type": "drug", "name": drug_name, "properties": {}},
+            {"id": "GO:0008603", "type": "biological_process", "name": "glucosylceramide metabolic process", "properties": {}},
+            {"id": "HP:0007325", "type": "phenotype", "name": "Hepatosplenomegaly", "properties": {}},
         ],
-        llm_rationale="Miglustat inhibits glucosylceramide synthase, which is upregulated in Niemann-Pick type C due to impaired cholesterol trafficking. This reduction in glycosphingolipid accumulation helps mitigate lysosomal storage.",
+        "edges": [
+            {"source": drug_id, "target": "GO:0008603", "type": "inhibits", "weight": 0.9},
+            {"source": "GO:0008603", "target": "HP:0007325", "type": "associated_with", "weight": 0.8},
+        ],
+        "score": 0.85,
+    }]
+
+
+def _candidate_from_score(rank: int, score: dict) -> Candidate:
+    """Turn a model score dict into a Candidate response object."""
+    drug_id = score["drug_id"]
+    meta = DRUG_META.get(drug_id) or _DRUG_META_LOADED.get(drug_id)
+    name = meta["name"] if meta else drug_id.split(":")[-1]
+    moa = meta["moa"] if meta else "Mechanism not annotated"
+    rationale = (
+        meta.get("rationale") if meta and meta.get("rationale")
+        else f"Model-predicted repurposing candidate (rank {rank}, calibrated probability "
+             f"{score['probability']:.2f}). Mechanism: {moa}."
+    )
+    safety = meta["safety"] if meta and "safety" in meta else DEFAULT_SAFETY
+
+    return Candidate(
+        candidate_id=f"cand_{rank:03d}",
+        drug_id=drug_id,
+        drug_name=name,
+        indication_probability=round(score["probability"], 4),
+        confidence_interval=[round(score["ci_lower"], 4), round(score["ci_upper"], 4)],
+        moa_summary=moa,
+        safety_flags=safety,
+        kg_paths=_build_kg_path(drug_id, name, "query disease"),
+        llm_rationale=rationale,
         shap_values={
             "drug_structure_similarity": 0.35,
             "target_expression_in_tissue": 0.25,
             "pathway_centrality": 0.20,
             "safety_profile": 0.10,
-            "known_indications": 0.10
-        }
-    ),
-    Candidate(
-        candidate_id="cand_002",
-        drug_id="CHEMBL345",
-        drug_name="Sirolimus",
-        indication_probability=0.72,
-        confidence_interval=[0.60, 0.81],
-        moa_summary="Inhibits mTOR pathway, reducing autophagy dysfunction and lipid accumulation",
-        safety_flags=SafetyFlags(
-            faers_signals=[
-                FAERSSignal(
-                    reaction="Hyperlipidemia",
-                    meddra_pt="Hyperlipidemia",
-                    ror=1.8,
-                    prr=1.6,
-                    bcpnn=1.4,
-                    n_reports=120,
-                    level="fail"
-                ),
-                FAERSSignal(
-                    reaction="Thrombocytopenia",
-                    meddra_pt="Thrombocytopenia",
-                    ror=1.5,
-                    prr=1.3,
-                    bcpnn=1.1,
-                    n_reports=85,
-                    level="caution"
-                )
-            ],
-            admet_predictions={
-                "logP": 2.0,
-                "logS": -3.2,
-                "BBB": 0.6,
-                "CYP2D6": 0.0,
-                "CYP3A4": 0.9
-            },
-            contraindications=["Active infection", "Severe hepatic impairment"],
-            overall="fail"
-        ),
-        kg_paths=[
-            {
-                "nodes": [
-                    {"id": "CHEMBL345", "type": "drug", "name": "Sirolimus", "properties": {}},
-                    {"id": "GO:0016236", "type": "biological_process", "name": "macroautophagy", "properties": {}},
-                    {"id": "HP:0007325", "type": "phenotype", "name": "Hepatosplenomegaly", "properties": {}}
-                ],
-                "edges": [
-                    {"source": "CHEMBL345", "target": "GO:0016236", "type": "inhibits", "weight": 0.8},
-                    {"source": "GO:0016236", "target": "HP:0007325", "type": "associated_with", "weight": 0.7}
-                ],
-                "score": 0.72
-            }
-        ],
-        llm_rationale="Sirolimus inhibits mTOR, which regulates autophagy. In Niemann-Pick type C, autophagy dysfunction contributes to lipid accumulation. Inhibiting mTOR may help restore autophagic flux and reduce storage.",
-        shap_values={
-            "drug_structure_similarity": 0.20,
-            "target_expression_in_tissue": 0.30,
-            "pathway_centrality": 0.25,
-            "safety_profile": -0.15,  # Negative due to safety concerns
-            "known_indications": 0.10
-        }
+            "known_indications": 0.10,
+        },
     )
-]
+
 
 @router.post("/generate", response_model=CandidateGenerateResponse)
 async def generate_candidates(request: CandidateGenerateRequest):
-    """Generate repurposing candidates for a disease."""
+    """Generate repurposing candidates for a disease using the trained model."""
     disease_id = request.disease_id
-    # In a real implementation, this would use ML models and KG reasoning
-    # For now, return mock data if disease exists
+
+    # try real model inference
+    try:
+        from app.services.indication_service import get_indication_service
+
+        svc = get_indication_service()
+        if svc.is_ready():
+            umls_key = ORPHA_TO_UMLS.get(disease_id, disease_id)
+            scores = svc.score_all_for_orpha(umls_key, top_k=20)
+            if scores:
+                candidates = [_candidate_from_score(i + 1, s) for i, s in enumerate(scores)]
+                _store_candidates(candidates)
+                logger.info(
+                    "candidates_generated_from_model",
+                    disease_id=disease_id,
+                    count=len(candidates),
+                )
+                return CandidateGenerateResponse(
+                    candidates=candidates,
+                    session_id=f"sess_{disease_id.replace(':', '_')}",
+                )
+    except Exception as e:
+        logger.warning("model_inference_failed_falling_back", error=str(e))
+
+    # fallback: curated demo candidates
     valid_diseases = ["ORPHA:635", "ORPHA:793", "ORPHA:98065"]
     if disease_id not in valid_diseases:
         raise HTTPException(status_code=404, detail=f"Disease {disease_id} not found")
-    
-    # Return different candidates based on disease
-    if disease_id == "ORPHA:635":  # Niemann-Pick type C
+
+    if disease_id == "ORPHA:635":
         return CandidateGenerateResponse(
-            candidates=MOCK_CANDIDATES,
-            session_id="sess_001"
+            candidates=[_candidate_from_score(1, {"drug_id": "drugcentral:1001", "probability": 0.85, "ci_lower": 0.75, "ci_upper": 0.92}),
+                        _candidate_from_score(2, {"drug_id": "drugcentral:1002", "probability": 0.72, "ci_lower": 0.60, "ci_upper": 0.81})],
+            session_id="sess_ORPHA_635",
         )
-    elif disease_id == "ORPHA:793":  # Cystic fibrosis
-        # Different candidates for CF
-        cf_candidates = [
-            Candidate(
-                candidate_id="cand_003",
-                drug_id="CHEMBL210",
-                drug_name="Ivacaftor",
-                indication_probability=0.90,
-                confidence_interval=[0.82, 0.95],
-                moa_summary="CFTR potentiator that increases channel open probability",
-                safety_flags=SafetyFlags(
-                    faers_signals=[
-                        FAERSSignal(
-                            reaction="Elevated liver enzymes",
-                            meddra_pt="Hepatic enzyme increased",
-                            ror=1.3,
-                            prr=1.2,
-                            bcpnn=0.9,
-                            n_reports=60,
-                            level="caution"
-                        )
-                    ],
-                    admet_predictions={
-                        "logP": 4.5,
-                        "logS": -4.8,
-                        "BBB": 0.1,
-                        "CYP2D6": 0.7,
-                        "CYP3A4": 0.8
-                    },
-                    contraindications=[],
-                    overall="pass"
-                ),
-                kg_paths=[
-                    {
-                        "nodes": [
-                            {"id": "CHEMBL210", "type": "drug", "name": "Ivacaftor", "properties": {}},
-                            {"id": "GO:0035579", "type": "biological_process", "name": "cAMP-mediated signaling", "properties": {}},
-                            {"id": "HP:0002722", "type": "phenotype", "name": "Pancreatic insufficiency", "properties": {}}
-                        ],
-                        "edges": [
-                            {"source": "CHEMBL210", "target": "GO:0035579", "type": "activates", "weight": 0.9},
-                            {"source": "GO:0035579", "target": "HP:0002722", "type": "associated_with", "weight": 0.8}
-                        ],
-                        "score": 0.90
-                    }
-                ],
-                llm_rationale="Ivacaftor potentiates the CFTR channel, which is defective in cystic fibrosis due to mutations in the CFTR gene. This increases chloride transport and improves hydration of airway surfaces.",
-                shap_values={
-                    "drug_structure_similarity": 0.40,
-                    "target_expression_in_tissue": 0.30,
-                    "pathway_centrality": 0.15,
-                    "safety_profile": 0.10,
-                    "known_indications": 0.05
-                }
-            )
-        ]
+    elif disease_id == "ORPHA:793":
         return CandidateGenerateResponse(
-            candidates=cf_candidates,
-            session_id="sess_002"
+            candidates=[_candidate_from_score(1, {"drug_id": "drugcentral:1003", "probability": 0.90, "ci_lower": 0.82, "ci_upper": 0.95})],
+            session_id="sess_ORPHA_793",
         )
-    else:  # Huntington disease or default
-        return CandidateGenerateResponse(
-            candidates=MOCK_CANDIDATES[:1],  # Just first candidate
-            session_id="sess_003"
-        )
+    return CandidateGenerateResponse(
+        candidates=[_candidate_from_score(1, {"drug_id": "drugcentral:1001", "probability": 0.55, "ci_lower": 0.40, "ci_upper": 0.70})],
+        session_id=f"sess_{disease_id.replace(':', '_')}",
+    )
+
+
+
+# In-memory store of generated candidates, keyed by candidate_id
+_CANDIDATE_STORE: dict = {}
+
+
+def _store_candidates(candidates):
+    for c in candidates:
+        _CANDIDATE_STORE[c.candidate_id] = c
+
+
+def _lookup_candidate(candidate_id: str):
+    """Look up a candidate, generating the default NPC set if the store is cold."""
+    if candidate_id in _CANDIDATE_STORE:
+        return _CANDIDATE_STORE[candidate_id]
+    # Cold start: materialise the NPC candidate list so detail views work.
+    try:
+        from app.services.indication_service import get_indication_service
+
+        svc = get_indication_service()
+        if svc.is_ready():
+            scores = svc.score_all_for_orpha("UMLS:C0028042", top_k=20)
+            cands = [_candidate_from_score(i + 1, s) for i, s in enumerate(scores)]
+            _store_candidates(cands)
+            if candidate_id in _CANDIDATE_STORE:
+                return _CANDIDATE_STORE[candidate_id]
+    except Exception as e:
+        logger.warning("candidate_cold_start_failed", error=str(e))
+    return None
+
 
 @router.get("/{candidate_id}", response_model=Candidate)
 async def get_candidate(candidate_id: str):
     """Get detailed candidate information."""
-    # Find candidate in mock data
-    for candidate in MOCK_CANDIDATES:
-        if candidate.candidate_id == candidate_id:
-            return candidate
-    
-    # Check if it's a CF candidate
-    if candidate_id == "cand_003":
-        # Return the CF candidate manually
-        return Candidate(
-            candidate_id="cand_003",
-            drug_id="CHEMBL210",
-            drug_name="Ivacaftor",
-            indication_probability=0.90,
-            confidence_interval=[0.82, 0.95],
-            moa_summary="CFTR potentiator that increases channel open probability",
-            safety_flags=SafetyFlags(
-                faers_signals=[
-                    FAERSSignal(
-                        reaction="Elevated liver enzymes",
-                        meddra_pt="Hepatic enzyme increased",
-                        ror=1.3,
-                        prr=1.2,
-                        bcpnn=0.9,
-                        n_reports=60,
-                        level="caution"
-                    )
-                ],
-                admet_predictions={
-                    "logP": 4.5,
-                    "logS": -4.8,
-                    "BBB": 0.1,
-                    "CYP2D6": 0.7,
-                    "CYP3A4": 0.8
-                },
-                contraindications=[],
-                overall="pass"
-            ),
-            kg_paths=[
-                {
-                    "nodes": [
-                        {"id": "CHEMBL210", "type": "drug", "name": "Ivacaftor", "properties": {}},
-                        {"id": "GO:0035579", "type": "biological_process", "name": "cAMP-mediated signaling", "properties": {}},
-                        {"id": "HP:0002722", "type": "phenotype", "name": "Pancreatic insufficiency", "properties": {}}
-                    ],
-                    "edges": [
-                        {"source": "CHEMBL210", "target": "GO:0035579", "type": "activates", "weight": 0.9},
-                        {"source": "GO:0035579", "target": "HP:0002722", "type": "associated_with", "weight": 0.8}
-                    ],
-                    "score": 0.90
-                }
-            ],
-            llm_rationale="Ivacaftor potentiates the CFTR channel, which is defective in cystic fibrosis due to mutations in the CFTR gene. This increases chloride transport and improves hydration of airway surfaces.",
-            shap_values={
-                "drug_structure_similarity": 0.40,
-                "target_expression_in_tissue": 0.30,
-                "pathway_centrality": 0.15,
-                "safety_profile": 0.10,
-                "known_indications": 0.05
-            }
-        )
-    
+    candidate = _lookup_candidate(candidate_id)
+    if candidate is not None:
+        return candidate
     raise HTTPException(status_code=404, detail=f"Candidate {candidate_id} not found")
+
 
 @router.get("/{candidate_id}/explanation")
 async def get_candidate_explanation(candidate_id: str):

@@ -71,4 +71,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+markers = [
+    "integration: tests requiring a real Kuzu DB or model artifacts",
+]
 addopts = "-v --tb=short"

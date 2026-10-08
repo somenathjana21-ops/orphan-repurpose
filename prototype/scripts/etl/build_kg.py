@@ -320,6 +320,39 @@ def load_pathways(conn: kuzu.Connection, processed_dir: Path):
     pass
 
 
+def load_treats(conn: kuzu.Connection, processed_dir: Path):
+    """Create TREATS edges from known drug->indication pairs.
+
+    DrugCentral indications carry a UMLS CUI; the disease nodes created from
+    those same CUIs use the id ``UMLS:<cui>``.
+    """
+    path = processed_dir / "drugcentral" / "drugcentral_indications.parquet"
+    if not path.exists():
+        logger.warning("indications_parquet_not_found", path=str(path))
+        return
+    df = pd.read_parquet(path)
+    n = 0
+    for _, row in tqdm(df.iterrows(), total=len(df), desc="Loading TREATS"):
+        cui = row.get("umls_cui")
+        if not isinstance(cui, str) or not cui:
+            continue
+        try:
+            conn.execute(
+                """
+                MATCH (d:Drug {id: $drug_id}), (dis:Disease {id: $disease_id})
+                CREATE (d)-[:TREATS {evidence: "DrugCentral", confidence: 1.0}]->(dis)
+                """,
+                {
+                    "drug_id": f"drugcentral:{row['struct_id']}",
+                    "disease_id": f"UMLS:{cui}",
+                },
+            )
+            n += 1
+        except Exception as e:
+            logger.debug("treats_edge_skipped", error=str(e))
+    logger.info("loaded_treats_edges", count=n)
+
+
 def load_relationships(conn: kuzu.Connection, processed_dir: Path):
     """Load relationships between entities."""
     logger.info("loading_relationships")
@@ -387,6 +420,7 @@ def build_kg(processed_dir: Path, kuzu_db_path: Path):
 
         # Load relationships
         load_relationships(conn, processed_dir)
+        load_treats(conn, processed_dir)
 
         # Verify
         result = conn.execute("MATCH (n) RETURN labels(n) as label, count(*) as count")
