@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { candidatesApi } from '../services/api'
 import { ExplanationPanel } from './ExplanationPanel'
 import { SafetyDashboard } from './SafetyDashboard'
+import { ValidationPanel } from './ValidationPanel'
 
 export function CandidateDetail() {
   const { candidateId } = useParams<{ candidateId: string }>()
@@ -175,6 +176,12 @@ export function CandidateDetail() {
             </div>
           </>
         )}
+      </div>
+
+      {/* Validation */}
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-gray-800 mb-2">Validation</h2>
+        <ValidationPanel candidateId={candidate.candidate_id} />
       </div>
     </div>
   )

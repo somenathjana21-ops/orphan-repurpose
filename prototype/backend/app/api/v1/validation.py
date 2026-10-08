@@ -2,11 +2,9 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Optional
 from datetime import datetime, timezone
 import structlog
-import hashlib
-import json
 import uuid
 from app.models.disease import ValidationRequest, SelfAssessmentRequest, AuditEntry, AuditTrail
-from app.api.v1.audit import _audit_log, _add_entry
+from app.services.audit_service import get_audit_service
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -17,7 +15,8 @@ async def validate_candidate(candidate_id: str, request: ValidationRequest):
     """Record expert validation of a candidate."""
     try:
         session_id = str(uuid.uuid4())
-        entry = _add_entry(
+        svc = get_audit_service()
+        entry = svc.add_entry(
             session_id=session_id,
             entry_type="validation",
             user=request.validator,
@@ -44,7 +43,8 @@ async def self_assess_candidate(candidate_id: str, request: SelfAssessmentReques
     """Record self-assessment of a candidate."""
     try:
         session_id = str(uuid.uuid4())
-        entry = _add_entry(
+        svc = get_audit_service()
+        entry = svc.add_entry(
             session_id=session_id,
             entry_type="self_assessment",
             user="self",
@@ -72,9 +72,11 @@ async def self_assess_candidate(candidate_id: str, request: SelfAssessmentReques
 async def get_audit_trail(session_id: str):
     """Get audit trail for a session."""
     try:
-        if session_id not in _audit_log:
+        svc = get_audit_service()
+        trail = svc.get_trail(session_id)
+        if trail is None:
             raise HTTPException(status_code=404, detail=f"Audit trail for session {session_id} not found")
-        return AuditTrail(session_id=session_id, entries=_audit_log[session_id])
+        return trail
     except HTTPException:
         raise
     except Exception as e:
@@ -86,28 +88,11 @@ async def get_audit_trail(session_id: str):
 async def verify_audit_trail(session_id: str):
     """Verify the integrity of an audit trail by checking hash chain."""
     try:
-        if session_id not in _audit_log:
+        svc = get_audit_service()
+        result = svc.verify(session_id)
+        if not result.get("valid") and result.get("message") == "Session not found":
             raise HTTPException(status_code=404, detail=f"Audit trail for session {session_id} not found")
-        
-        entries = _audit_log[session_id]
-        previous_hash = ""
-        for i, entry in enumerate(entries):
-            expected_hash = _compute_hash(entry, previous_hash)
-            if entry.hash != expected_hash:
-                return {
-                    "session_id": session_id,
-                    "valid": False,
-                    "failed_at_index": i,
-                    "message": f"Hash mismatch at entry {i}",
-                }
-            previous_hash = entry.hash
-        
-        return {
-            "session_id": session_id,
-            "valid": True,
-            "entry_count": len(entries),
-            "message": "Audit trail integrity verified",
-        }
+        return result
     except HTTPException:
         raise
     except Exception as e:
