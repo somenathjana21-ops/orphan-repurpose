@@ -269,7 +269,26 @@ async def get_candidate_explanation(candidate_id: str):
 async def get_candidate_safety(candidate_id: str):
     """Get safety assessment for a candidate."""
     candidate = await get_candidate(candidate_id)
-    return candidate.safety_flags
+    try:
+        from app.services.safety_service import get_safety_service
+        svc = get_safety_service()
+        smiles = ""
+        try:
+            from app.services.indication_service import get_indication_service
+            ind_svc = get_indication_service()
+            if ind_svc.is_ready():
+                smiles = ind_svc.drug_smiles.get(candidate.drug_id, "")
+        except Exception:
+            pass
+        result = svc.assess_drug(
+            drug_id=candidate.drug_id,
+            drug_name=candidate.drug_name,
+            smiles=smiles,
+        )
+        return result
+    except Exception as e:
+        logger.warning("safety_service_failed_falling_back", error=str(e))
+        return candidate.safety_flags
 
 @router.get("/{candidate_id}/kg-subgraph")
 async def get_candidate_kg_subgraph(candidate_id: str):

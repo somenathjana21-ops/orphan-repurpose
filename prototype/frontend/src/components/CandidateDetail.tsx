@@ -2,6 +2,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { candidatesApi } from '../services/api'
 import { ExplanationPanel } from './ExplanationPanel'
+import { SafetyDashboard } from './SafetyDashboard'
 
 export function CandidateDetail() {
   const { candidateId } = useParams<{ candidateId: string }>()
@@ -41,7 +42,10 @@ export function CandidateDetail() {
     )
   }
 
-  const safetyLevel = safety?.overall ?? candidate.safety_flags.overall
+  const safetyLevel = safety && 'overall' in safety ? safety.overall : candidate.safety_flags.overall
+  const safetyAssessment = safety && 'admet_classifications' in safety
+    ? (safety as import('../types/safety').SafetyAssessment)
+    : null
 
   return (
     <div className="p-6">
@@ -99,6 +103,14 @@ export function CandidateDetail() {
         <h2 className="text-xl font-semibold text-gray-800 mb-2">Safety Assessment</h2>
         {safetyLoading ? (
           <p className="text-gray-500">Loading safety data...</p>
+        ) : safetyAssessment ? (
+          <SafetyDashboard
+            overall={safetyAssessment.overall}
+            faersSignals={safetyAssessment.faers_signals}
+            admetPredictions={safetyAssessment.admet_predictions}
+            admetClassifications={safetyAssessment.admet_classifications}
+            contraindications={safetyAssessment.contraindications}
+          />
         ) : (
           <>
             <div className="flex items-center gap-2">

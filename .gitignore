@@ -37,6 +37,9 @@ prototype/models/
 *.pkl
 *.pt
 *.gguf
+.coverage
+htmlcov/
+coverage.xml
 
 # Node
 node_modules/

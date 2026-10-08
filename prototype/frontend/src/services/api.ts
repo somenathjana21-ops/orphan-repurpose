@@ -102,8 +102,8 @@ export const candidatesApi = {
     return data
   },
 
-  getSafety: async (candidateId: string): Promise<SafetyFlags> => {
-    const { data } = await api.get<SafetyFlags>(`/api/v1/candidates/${candidateId}/safety`)
+  getSafety: async (candidateId: string): Promise<SafetyFlags | import('../types/safety').SafetyAssessment> => {
+    const { data } = await api.get<SafetyFlags | import('../types/safety').SafetyAssessment>(`/api/v1/candidates/${candidateId}/safety`)
     return data
   },
 
