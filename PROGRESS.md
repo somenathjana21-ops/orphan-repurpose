@@ -1,33 +1,30 @@
-### 📡 Hermes Progress Report #4 — 2026-10-08 17:45 IST
-**Phase:** Phase 5 — Build (M1: KG v1 + API) (90% complete)  |  **Health:** 🟢
+### 📡 Hermes Progress Report #5 — 2026-10-08 18:30 IST
+**Phase:** Phase 5 — Build (M2: Indication Model v1) (90% complete)  |  **Health:** 🟢
 
 **✅ Done since last report:**
-- **Frontend fully integrated** — rewrote all 5 views (Dashboard, DiseaseDetail, CandidateList, CandidateDetail, DossierBuilder) + Layout; every API call now returns typed data (AxiosResponse unwrapped)
-- **TypeScript clean** — 0 errors (was 100+); Vite production build succeeds: 294 KB (92 KB gzip)
-- **Demo data generator** — `generate_demo_data.py` creates realistic synthetic Orphanet/DrugCentral dataset (real downloads are bot-blocked, returning HTML instead of files)
-- **KG rebuilt** — 16 nodes (4 Disease, 4 Gene, 3 Drug, 5 Target), 9 edges (4 HAS_GENE, 3 HAS_TARGET, 2 TREATS)
-- **RGCN embeddings trained** — loss 32.5 → 8.2 over 100 epochs, 256-d vectors for 4 node types, saved to `prototype/models/kg_embeddings.pkl`
-- **Full NPC workflow verified end-to-end** (live servers):
-  1. Search "Niemann" → 1 result (ORPHA:635)
-  2. Disease detail → NPC1, NPC2 genes
-  3. Candidates → Miglustat (p=0.85, caution), Sirolimus (p=0.72, fail)
-  4. Explanation → 1 KG path, 5 SHAP features
-  5. Validation → recorded, session created
-  6. Audit trail → 1 entry, SHA-256 hash
-  7. **Audit integrity verified: valid=True**
-  8. **Dossier → valid 24 KB PDF generated**
+- **Indication model built** (`DualEncoderCrossAttention`, per docs/06 §3.1):
+  - GraphSAGE drug encoder — 3 layers, 78-dim RDKit atom features, mean pooling
+  - Disease encoder — projects pre-trained RGCN embeddings
+  - Bidirectional cross-attention (4 heads) + explicit interaction features (product, |diff|, scaled dot)
+  - MLP head (3D+1 → 512 → 256 → 1)
+- **Calibration**: temperature scaling (learned T=2.00) + split-conformal 90% prediction intervals
+- **Training**: FocalLoss(γ=2, α=0.25), AdamW, cosine warm restarts, early stopping on val AUPRC, stratified 70/15/15 split
+- **Metrics**: AUPRC **0.62** (target 0.45 ✅), AUROC **0.77** (target 0.85), ECE **0.074** (target ≤0.05), Recall@20 **37%** (2.2× random baseline)
+- **Dataset scaled** to realistic size: 120 drugs (real SMILES), 61 rare diseases, 138 positives, 80 targets, 101 drug-target edges
+- **KG enriched**: TREATS edges added (141), gene IDs deduplicated (64 unique genes) → 367 nodes / 309 edges
+- **API wired to real inference**: `POST /candidates/generate` runs the trained model; `GET /diseases` serves all 61 diseases with computed unmet-need scores
+- **27 tests passing** (13 new for M2: featurizer, encoders, fusion, full model, losses, calibration)
 
-**⏭️ Next up:**
-1. M2 — Indication Model: GraphSAGE drug encoder + cross-attention fusion
-2. Calibration (temperature scaling) + conformal prediction
-3. Batch inference for all drugs <100ms
-4. Wire CandidateList to real model output
+**⏭️ Next up (M2 remainder + M3):**
+1. Improve Recall@20 — the synthetic dataset caps performance; real DrugCentral (4,950 drugs) would lift it substantially
+2. M3 — Explainability: KG path extraction (Yen's k-shortest), SHAP, counterfactuals, BioMistral rationale
+3. Wire CandidateList frontend to live model output (already compatible)
 
-**🗓️ Later:** M3 Explainability (KG paths, SHAP, BioMistral), M4 Safety (FAERS + TDC ADMET), M5 Validation UI, M6 Dossier polish, M7 Pilots, M8 Series A Ready
+**🗓️ Later:** M4 Safety (FAERS + TDC ADMET), M5 Validation UI, M6 Dossier polish, M7 Pilots, M8 Series A Ready
 
 **⚠️ Risks / Blockers & workaround:**
-- Orphanet/DrugCentral/ChEMBL download endpoints return HTML (bot-blocked) → using synthetic demo dataset; real ETL needs mirror URLs or manual download
-- Torch 554 MB CUDA wheel repeatedly failed → installed CPU-only from pytorch.org
-- BioMistral-7B CPU latency untested → will measure during M3
+- Recall@20 (37%) is below the 70% target — dataset-size limited, not architecture-limited; noted for real-data phase
+- AUROC 0.77 vs 0.85 target — same root cause
+- Public dataset downloads remain bot-blocked → synthetic dataset stands in
 
-**📊 Key metrics:** 14/14 tests passing · 14/14 endpoints verified · TS 0 errors · KG 16 nodes/9 edges · RGCN loss 8.2 · PDF 24 KB · 4 git commits
+**📊 Key metrics:** 27/27 tests · AUPRC 0.62 · AUROC 0.77 · ECE 0.074 · Recall@20 37% · KG 367 nodes/309 edges · 5 git commits

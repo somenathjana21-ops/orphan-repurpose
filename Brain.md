@@ -2,21 +2,21 @@
 
 ## 0. Quick Resume (≤10 lines: where am I, what's next, active project path)
 - **Mission**: Build OrphanRepurpose — AI-powered drug repurposing platform for rare/orphan diseases
-- **Current Phase**: Phase 5 — Build (M1: KG v1 + API — 90% complete)
+- **Current Phase**: Phase 5 — Build (M2: Indication Model — 90% complete)
 - **Active Path**: /workspace/dev/orphan-repurpose/
-- **Next Action**: M2 — Indication Model (GraphSAGE drug encoder + cross-attention fusion)
+- **Next Action**: M3 — Explainability Stack (KG paths, SHAP, counterfactuals, BioMistral rationale)
 
 ## 1. Mission & Chosen Opportunity (1 paragraph + why)
 **OrphanRepurpose** — An AI-powered platform that identifies and validates drug repurposing opportunities for rare and orphan diseases by integrating a curated rare-disease knowledge graph, multimodal public datasets (DrugCentral, TDC, FAERS, ClinicalTrials.gov, PubMed, ChEMBL), and clinician-in-the-loop explainable AI. The platform outputs prioritized, validation-ready repurposing candidates with audit trails suitable for FDA Orphan Drug Designation submissions. **Why**: Highest weighted score (4.70/5.0) across all criteria. Unmatched prototype feasibility with 6+ public datasets. Strongest pain/WTP via Orphan Drug Act incentives (7-yr exclusivity, tax credits). Regulatory tailwind from FDA repurposing approvals + orphan pathways. Differentiation white space: PatSnap 2026 shows rare/orphan "underserved" vs COVID-19/oncology dominance. Defensible moat via curated KG + clinician feedback loops + explainable audit trail. Lower regulatory risk: approved drugs = known safety, no novel tox.
 
 ## 2. Current Phase & Status
-- **Phase**: Phase 5 — Build (M1: KG v1 + API — 90% complete)
-- **% Complete**: M1 90% (API + frontend + KG + demo data done; real-data ETL pending)
+- **Phase**: Phase 5 — Build (M2: Indication Model — 90% complete)
+- **% Complete**: M1 90%, M2 90% (model trained + API-wired; Recall@20 below target due to synthetic-data scale)
 - **Health**: 🟢
 
 ## 3. Next Actions (ordered checklist, top item = what to do immediately)
 1. [~] **M1: KG v1 + API** — 90% done: 8 ETL scripts (demo data generator added), Kuzu KG (12 node/11 rel tables), RGCN embeddings (loss 32.5→8.2), 7 REST route modules, 5 frontend views. Remaining: real Orphanet/DrugCentral downloads (currently bot-blocked → demo data)
-2. [ ] **M2: Indication Model v1** — GraphSAGE drug encoder, cross-attention fusion, calibration, batch inference, candidate API, CandidateList frontend
+2. [~] **M2: Indication Model v1** — 90% done: DualEncoderCrossAttention (GraphSAGE + cross-attention), focal loss, temperature + conformal calibration, API-wired. Metrics AUPRC 0.62 / AUROC 0.77 / ECE 0.074 / Recall@20 37%. Remaining: lift Recall@20 (needs real-scale data)
 3. [ ] **M3: Explainability Stack** — KG path extraction (Yen's k-shortest), SHAP, counterfactuals, BioMistral-7B LLM rationale, ExplanationPanel
 4. [ ] **M4: Safety Filter** — FAERS ROR/PRR/BCPNN, TDC ADMET pre-compute, contraindications, SafetyDashboard
 5. [ ] **M5: Validation UI** — Simulated clinician validation, self-assessment, immutable audit log (hash chain)
@@ -102,6 +102,8 @@
 - (will populate during build)
 
 ## 10. Changelog (date-stamped, newest first)
+- 2026-10-08: M2 complete (90%) — DualEncoderCrossAttention trained (AUPRC 0.62, AUROC 0.77, ECE 0.074, Recall@20 37%); API wired to live inference; 27 tests passing
+- 2026-10-08: Dataset scaled to 120 drugs / 61 diseases / 138 positives; KG enriched with TREATS edges (367 nodes, 309 edges)
 - 2026-10-08: M1 complete (90%) — API + frontend + KG + demo data; full NPC workflow verified end-to-end incl. 24KB PDF dossier
 - 2026-10-08: Frontend integration — all API calls typed & unwrapped; TS 0 errors; Vite build 294KB (92KB gzip)
 - 2026-10-08: Rebuilt KG with demo data — 16 nodes, 9 edges; RGCN trained (loss 32.5→8.2)
