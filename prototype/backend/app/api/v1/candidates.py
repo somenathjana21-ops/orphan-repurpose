@@ -243,20 +243,27 @@ async def get_candidate(candidate_id: str):
 async def get_candidate_explanation(candidate_id: str):
     """Get explanation for a candidate."""
     candidate = await get_candidate(candidate_id)
-    # Return explanation structure
-    return {
-        "candidate_id": candidate_id,
-        "kg_paths": candidate.kg_paths,
-        "shap_values": candidate.shap_values,
-        "counterfactuals": [
-            {
-                "removed_edge": "CHEMBL1200 -> GO:0008603",
-                "probability_delta": -0.35,
-                "description": "If Miglustat did not inhibit glucosylceramide synthase, indication probability would decrease significantly"
-            }
-        ],
-        "llm_rationale": candidate.llm_rationale
-    }
+    try:
+        from app.services.explanation_service import get_explanation_service
+        svc = get_explanation_service()
+        explanation = svc.explain_candidate(
+            drug_id=candidate.drug_id,
+            disease_id="unknown",
+            drug_name=candidate.drug_name,
+            disease_name="query disease",
+            probability=candidate.indication_probability,
+            moa_summary=candidate.moa_summary,
+        )
+        return explanation
+    except Exception as e:
+        logger.warning("explanation_service_failed_falling_back", error=str(e))
+        return {
+            "candidate_id": candidate_id,
+            "kg_paths": candidate.kg_paths,
+            "shap_values": candidate.shap_values,
+            "counterfactuals": [],
+            "llm_rationale": candidate.llm_rationale
+        }
 
 @router.get("/{candidate_id}/safety")
 async def get_candidate_safety(candidate_id: str):

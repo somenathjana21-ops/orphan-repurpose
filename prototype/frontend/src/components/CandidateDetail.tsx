@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { candidatesApi } from '../services/api'
+import { ExplanationPanel } from './ExplanationPanel'
 
 export function CandidateDetail() {
   const { candidateId } = useParams<{ candidateId: string }>()
@@ -84,82 +85,14 @@ export function CandidateDetail() {
         <p className="text-gray-700">{candidate.moa_summary}</p>
       </div>
 
-      {/* Knowledge Graph Paths */}
-      {explanationLoading ? (
-        <p className="text-gray-500 mb-6">Loading explanation...</p>
-      ) : (
-        explanation?.kg_paths &&
-        explanation.kg_paths.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">Knowledge Graph Paths</h2>
-            <div className="space-y-3">
-              {explanation.kg_paths.map((path, index) => (
-                <div key={index} className="p-3 bg-gray-50 rounded">
-                  <h3 className="text-lg font-medium text-gray-800 mb-2">
-                    Path {index + 1} (Score: {path.score.toFixed(3)})
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {path.nodes.map((node, nodeIndex) => (
-                      <span key={nodeIndex} className="flex items-center gap-2">
-                        <span className="bg-blue-50 px-2 py-0.5 text-xs font-medium rounded text-blue-800">
-                          {node.name}
-                        </span>
-                        {nodeIndex < path.nodes.length - 1 && (
-                          <span className="text-gray-500">→</span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-      )}
-
-      {/* SHAP Values */}
-      {explanation?.shap_values && Object.keys(explanation.shap_values).length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">
-            SHAP Values (Feature Importance)
-          </h2>
-          <div className="grid grid-cols-1 gap-2">
-            {Object.entries(explanation.shap_values).map(([feature, value]) => (
-              <div key={feature} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                <span className="text-gray-700">{feature}</span>
-                <span className="font-mono">{Number(value).toFixed(3)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Counterfactuals */}
-      {explanation?.counterfactuals && explanation.counterfactuals.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Counterfactuals</h2>
-          <div className="space-y-2">
-            {explanation.counterfactuals.map((cf, index) => (
-              <div key={index} className="p-3 bg-gray-50 rounded">
-                <p className="text-gray-700">{cf.description}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Probability delta: {cf.probability_delta.toFixed(3)}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* LLM Rationale */}
-      {explanation?.llm_rationale && (
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">LLM Rationale</h2>
-          <div className="p-4 bg-gray-50 rounded">
-            <p className="text-gray-700 whitespace-pre-wrap">{explanation.llm_rationale}</p>
-          </div>
-        </div>
-      )}
+      {/* Explanation Panel */}
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-gray-800 mb-2">Explanation</h2>
+        <ExplanationPanel
+          explanation={explanation ?? { candidate_id: '', kg_paths: [], shap_values: {}, counterfactuals: [], llm_rationale: '' }}
+          isLoading={explanationLoading}
+        />
+      </div>
 
       {/* Safety */}
       <div className="mb-6">
