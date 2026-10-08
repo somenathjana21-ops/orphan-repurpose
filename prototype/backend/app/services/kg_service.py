@@ -17,13 +17,14 @@ class KGService:
         self.db = None
         self.conn = None
         self._initialize()
-    
+
     def _initialize(self):
         """Initialize Kuzu database connection."""
         self.db_path.mkdir(parents=True, exist_ok=True)
-        self.db = kuzu.Database(str(self.db_path))
+        self.db_file = self.db_path / "kuzu.db"
+        self.db = kuzu.Database(str(self.db_file))
         self.conn = kuzu.Connection(self.db)
-        logger.info("kuzu_initialized", path=str(self.db_path))
+        logger.info("kuzu_initialized", path=str(self.db_file))
     
     def execute(self, query: str, params: dict = None) -> List[Dict]:
         """Execute a Cypher query and return results as list of dicts."""
@@ -56,7 +57,7 @@ class KGService:
         params = {}
         
         if query:
-            where_conditions.append("(d.name CONTAINS $query OR d.orpha_id CONTAINS $query)")
+            where_conditions.append("(d.name CONTAINS $query OR d.id CONTAINS $query)")
             params["query"] = query
         
         if prevalence_max:
@@ -99,7 +100,7 @@ class KGService:
         for row in results:
             d = row["d"]
             diseases.append(DiseaseSearchResult(
-                orpha_id=d["orpha_id"],
+                orpha_id=d["id"],
                 name=d["name"],
                 prevalence=d.get("prevalence"),
                 prevalence_category=d.get("prevalence_category"),
@@ -117,28 +118,56 @@ class KGService:
     def get_disease(self, orpha_id: str) -> Optional[DiseaseDetail]:
         """Get detailed disease information."""
         query = """
-        MATCH (d:Disease {orpha_id: $orpha_id})
-        OPTIONAL MATCH (d)-[:HAS_GENE]->(g:Gene)
-        OPTIONAL MATCH (d)-[:HAS_PATHWAY]->(p:Pathway)
-        RETURN d, collect(DISTINCT g) as genes, collect(DISTINCT p) as pathways
+        MATCH (d:Disease {id: $orpha_id})
+        RETURN d
         """
         results = self.execute(query, {"orpha_id": orpha_id})
-        
         if not results:
             return None
-        
         row = results[0]
         d = row["d"]
         
+        # Get genes
+        genes = []
+        try:
+            gene_query = """
+            MATCH (d:Disease {id: $orpha_id})-[:HAS_GENE]->(g:Gene)
+            RETURN g
+            """
+            gene_results = self.execute(gene_query, {"orpha_id": orpha_id})
+            for gene_row in gene_results:
+                genes.append(gene_row["g"])
+        except Exception as e:
+            if "Binder exception" in str(e) and "HAS_GENE" in str(e):
+                genes = []
+            else:
+                raise
+        
+        # Get pathways
+        pathways = []
+        try:
+            pathway_query = """
+            MATCH (d:Disease {id: $orpha_id})-[:HAS_PATHWAY]->(p:Pathway)
+            RETURN p
+            """
+            pathway_results = self.execute(pathway_query, {"orpha_id": orpha_id})
+            for pathway_row in pathway_results:
+                pathways.append(pathway_row["p"])
+        except Exception as e:
+            if "Binder exception" in str(e) and "HAS_PATHWAY" in str(e):
+                pathways = []
+            else:
+                raise
+        
         return DiseaseDetail(
-            orpha_id=d["orpha_id"],
+            orpha_id=d["id"],
             name=d["name"],
             prevalence=d.get("prevalence"),
             prevalence_category=d.get("prevalence_category"),
             inheritance=d.get("inheritance"),
             age_of_onset=d.get("age_of_onset"),
-            genes=[Gene(**g) for g in row["genes"] if g],
-            pathways=[Pathway(**p) for p in row["pathways"] if p],
+            genes=[Gene(**g) for g in genes if g],
+            pathways=[Pathway(**p) for p in pathways if p],
             phenotypes=d.get("phenotypes", []),
             existing_treatments=d.get("existing_treatments", []),
             unmet_need_score=d.get("unmet_need_score"),
@@ -150,11 +179,10 @@ class KGService:
             created_at=d.get("created_at"),
             updated_at=d.get("updated_at"),
         )
-    
     def get_disease_genes(self, orpha_id: str) -> List[str]:
         """Get gene symbols for a disease."""
         query = """
-        MATCH (d:Disease {orpha_id: $orpha_id})-[:HAS_GENE]->(g:Gene)
+        MATCH (d:Disease {id: $orpha_id})-[:HAS_GENE]->(g:Gene)
         RETURN g.symbol as symbol
         """
         results = self.execute(query, {"orpha_id": orpha_id})
@@ -163,20 +191,19 @@ class KGService:
     def get_disease_pathways(self, orpha_id: str) -> List[str]:
         """Get pathway names for a disease."""
         query = """
-        MATCH (d:Disease {orpha_id: $orpha_id})-[:HAS_PATHWAY]->(p:Pathway)
+        MATCH (d:Disease {id: $orpha_id})-[:HAS_PATHWAY]->(p:Pathway)
         RETURN p.name as name
         """
         results = self.execute(query, {"orpha_id": orpha_id})
         return [r["name"] for r in results]
-    
     def get_drug_candidates(self, disease_id: str, limit: int = 50) -> List[Dict]:
         """Get potential drug candidates for a disease via KG paths."""
         query = """
-        MATCH (d:Disease {orpha_id: $disease_id})
+        MATCH (d:Disease {id: $disease_id})
         MATCH path = (dr:Drug)-[:HAS_TARGET|TREATS*1..3]->(d)
         WHERE dr.approval_status = 'FDA_approved'
-        RETURN dr.drugcentral_id as id, dr.name as name, dr.smiles as smiles,
-               dr.moa as moa, length(path) as path_length,
+        RETURN dr.id as id, dr.name as name, dr.smiles as smiles,
+               dr.moa_classes as moa, length(path) as path_length,
                [n in nodes(path) | labels(n)] as node_types,
                [r in relationships(path) | type(r)] as rel_types
         ORDER BY path_length, dr.name
@@ -188,7 +215,7 @@ class KGService:
     def get_kg_subgraph(self, drug_id: str, disease_id: str, max_depth: int = 3) -> Dict:
         """Get KG subgraph connecting drug to disease."""
         query = f"""
-        MATCH (dr:Drug {{drugcentral_id: $drug_id}}), (d:Disease {{orpha_id: $disease_id}})
+        MATCH (dr:Drug {{id: $drug_id}}), (d:Disease {{id: $disease_id}})
         MATCH path = (dr)-[:HAS_TARGET|PARTICIPATES_IN|IMPLICATED_IN|HAS_GENE*1..{max_depth}]->(d)
         RETURN path
         LIMIT 10

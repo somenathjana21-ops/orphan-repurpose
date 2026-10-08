@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/orphan_repurpose.db"
-    KUZU_DB_PATH: str = "./data/kuzu_db"
+    KUZU_DB_PATH: str = "../data/kuzu_db"
     CHROMA_DB_PATH: str = "./data/chroma_db"
 
     # Data paths

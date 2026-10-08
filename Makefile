@@ -88,13 +88,11 @@ data-process: process-orpha process-drugcentral process-tdc process-faers proces
 
 process-orpha:
 	@echo "⚙️  Processing Orphanet data..."
-	@mkdir -p $(PROCESSED_DIR)/orpha
-	# TODO: Implement Orphanet XML parsing
+	python ./prototype/scripts/etl/process_orpha.py $(RAW_DIR)/orpha $(PROCESSED_DIR)/orpha
 
 process-drugcentral:
 	@echo "⚙️  Processing DrugCentral data..."
-	@mkdir -p $(PROCESSED_DIR)/drugcentral
-	# TODO: Implement DrugCentral TSV parsing
+	python ./prototype/scripts/etl/process_drugcentral.py $(RAW_DIR)/drugcentral $(PROCESSED_DIR)/drugcentral
 
 process-tdc:
 	@echo "⚙️  Processing TDC data..."
@@ -126,20 +124,21 @@ process-pubmed:
 # =============================================================================
 kg-build:
 	@echo "🏗️  Building Knowledge Graph..."
-	@mkdir -p $(DATA_DIR)/kuzu_db
-	@mkdir -p $(MODELS_DIR)
-	# TODO: Implement KG construction from processed data
-	# TODO: Train RGCN embeddings
-	@echo "KG build complete (placeholder)"
+	python ./prototype/scripts/etl/build_kg.py $(PROCESSED_DIR) $(DATA_DIR)/kuzu_db
+
+# =============================================================================
+# KG EMBEDDINGS
+# =============================================================================
+kg-embeddings:
+	@echo "🧠 Training KG embeddings (RGCN)..."
+	cd $(BACKEND_DIR) && python ../scripts/etl/train_kg_embeddings.py $(DATA_DIR)/kuzu_db $(MODELS_DIR)/kg_embeddings.pkl
 
 # =============================================================================
 # MOLECULAR FEATURES
 # =============================================================================
 molecular-feats:
 	@echo "🧬 Computing molecular fingerprints..."
-	@mkdir -p $(DATA_DIR)/molecular
-	# TODO: Compute Morgan fingerprints for 1,608 DrugCentral drugs
-	@echo "Molecular features complete (placeholder)"
+	cd $(BACKEND_DIR) && python ../scripts/etl/compute_molecular_features.py $(PROCESSED_DIR) $(DATA_DIR)/molecular
 
 # =============================================================================
 # FAERS SIGNALS
@@ -186,7 +185,7 @@ train-indication-model:
 # =============================================================================
 # FULL SETUP
 # =============================================================================
-setup: data-download data-process kg-build molecular-feats faers-signals admet-predict literature-index model-train docker-build
+setup: data-download data-process kg-build kg-embeddings molecular-feats faers-signals admet-predict literature-index model-train docker-build
 	@echo "✅ Setup complete! Run 'make run' to start the platform."
 
 # =============================================================================

@@ -162,7 +162,7 @@ export interface DossierRequest {
 
 export interface DossierResponse {
   pdf_base64: string
-  json: DossierJSON
+  dossier_json: DossierJSON
   audit_trail_id: string
 }
 

@@ -1,0 +1,129 @@
+<!DOCTYPE html><!--
+Copyright © 2025 David Leadbeater <https://一.st>
+SPDX-License-Identifier: 0BSD
+-->
+<html lang="fr">
+  <head>
+    <meta name="viewport" content="width=device-width">
+    <title>Vérification de la connexion...</title>
+    <style>
+      body { background: #000; color: #ddd; overflow: hidden; margin: 0; padding: 0; height: 100vh; width: 100vw; }
+      a { color: #ddd; }
+      iframe { display: none; }
+      footer { position: fixed; bottom: 4px; width: 100%; text-align: center; }
+      #progress { position: absolute; margin: 0; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; font-size: 125%; }
+      #progressBar { font-size: 250%; user-select: none; }
+      #progressBar.done { transition: font-size 2s linear, opacity 2s linear; font-size: 1000%; opacity: 0.5; }
+      .animate { animation: spin 2s infinite linear; }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .star { background: #fff; position: absolute; border-radius: 1em; animation: blink 5s infinite; }
+      @keyframes blink {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <form method="post" target="post" action="/_challenge" name="challenge">
+      <input type="hidden" name="ip" value="49.37.36.18">
+      <input type="hidden" name="ts" value="1791444267">
+      <input type="hidden" name="diff" value="4">
+      <input type="hidden" name="tries" value="">
+    </form>
+    <div id="sky"></div>
+    <div id="progress"><span id="progressText"></span><div id="progressBar"></div></div>
+    <iframe srcdoc="" src="about:blank" name="post"></iframe>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      "use strict";
+
+      var starsNum = 100,
+          starsSpeed = 1,
+          windowW = $(window).width(),
+          windowH = $(window).height(),
+          sky = $('#sky');
+
+      for (var i = 0; i < starsNum; i++) {
+        var size = Math.floor((Math.random() * 5) + 2),
+            animDur = Math.floor(Math.random() * 8) / (starsSpeed / 2),
+            posX = Math.floor((Math.random() * windowW) + 1),
+            posY = Math.floor((Math.random() * windowH) + 1);
+
+        var randomAnimDuration = [
+            'animation-duration: ' + animDur + 's;'
+        ].join('');
+
+        var style = 'width: ' + size + 'px; height: ' + size + 'px; left: ' + posX + 'px; top: ' + posY + 'px;' + randomAnimDuration;
+
+        sky.append('<div class="star" style="' + style + '"></div>');
+      }
+
+      async function challenge(diff, ip, ts) {
+        let te = new TextEncoder;
+        let tries = 0;
+        progressText.innerText = "✋ Vérification de la connexion, veuillez patienter...";
+        progressBar.innerText = '🌀';
+        progressBar.className = 'animate';
+        for (; tries < 10_000_000; tries++) {
+          let hash = await crypto.subtle.digest("SHA-256", te.encode([ip,location.hostname,ts,tries].join(";")));
+          let y = new Uint8Array(hash);
+          let i = 0;
+          while(i < diff/2) {
+            if (y[i]>0x0F) break;
+            if ((i*2)+1 >= diff) return tries;
+            if (y[i++] > 0) break;
+            if ((i*2) >= diff) return tries;
+          }
+        }
+      }
+
+      async function startChallenge(form) {
+        if (!('subtle' in window.crypto)) {
+          if (location.protocol !== 'https:') {
+            progress.innerText = 'Pas de prise en charge WebCrypto. Une connexion HTTPS est obligatoire.';
+          } else {
+            progress.innerText = 'Pas de prise en charge WebCrypto dans votre navigateur. ' +
+              'La validation de la connexion est impossible.';
+          }
+          return;
+        }
+
+        let backoff = 0;
+        let tryOnce = _ => {
+          if (backoff > 8) {
+            progressText.innerText = 'Échec de la validation malgré plusieurs essais. Essayez de recharger la page.';
+            return;
+          }
+          setTimeout(async _ => submitAnswer(form), 1000*(Math.pow(2, backoff++)-1));
+        };
+        form.addEventListener("error", tryOnce);
+        let iframe = document.querySelector("iframe");
+        iframe.addEventListener("load", _ => location.hash.length ? location.reload() : location.replace(location));
+        tryOnce();
+      }
+
+      async function submitAnswer(form) {
+        let start = new Date;
+        let tries = await challenge(form.diff.value, form.ip.value, form.ts.value);
+        if (tries === undefined) {
+          progressText.innerText = 'Calcul de la validation impossible. Essayez de recharger la page ou via un autre navigateur.';
+          progressBar.innerText = '🤯';
+          progressBar.className = 'error';
+          return;
+        }
+        form.tries.value = tries;
+        progressText.innerText = 'Vérifié en ' + (new Date - start) + 'ms';
+        console.log(`${tries} tries.\n${progressText.innerText}`);
+        progressBar.className = 'done';
+        progressBar.innerText = '✅';
+        form.submit();
+      }
+
+      window.addEventListener("load", _ => startChallenge(document.forms.challenge));
+    </script>
+    <noscript>Les robots IA perturbent le Web, JavaScript est nécessaire pour accéder à cette page.</noscript>
+    <footer>protégé par <a href="https://d.cx/haphash" target="_new">haphash</a></footer>
+  </body>
+</html>

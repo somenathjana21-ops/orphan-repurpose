@@ -66,14 +66,14 @@ export const candidatesApi = {
     validator: string
     assessment: 'plausible' | 'needs_data' | 'unlikely'
     rationale: string
-  }) => api.post(`/api/v1/candidates/${candidateId}/validate`, data),
+  }) => api.post(`/api/v1/validation/candidates/${candidateId}/validate`, data),
   
   selfAssess: (candidateId: string, data: {
     efficacy: number
     safety: number
     feasibility: number
     notes: string
-  }) => api.post(`/api/v1/candidates/${candidateId}/assess`, data),
+  }) => api.post(`/api/v1/validation/candidates/${candidateId}/assess`, data),
 }
 
 // Validation API

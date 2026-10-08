@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project artifacts
+*.log
+*.pid
+data/kuzu_db/
+data/chroma_db/
+data/molecular/
+data/safety/
+data/raw/
+data/processed/
+models/
+mlruns/
+*.db
+*.pkl
+*.pt
+*.gguf
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# DVC
+.dvc/
+.dvcignore
+
+# Docker
+.dockerignore
+
+# Secrets
+.env
+.env.local

@@ -16,28 +16,29 @@ class TestKGService:
             service = KGService()
             service.db = mock_db
             service.conn = mock_conn
+            service.execute = Mock()
             yield service
     
     def test_search_diseases_no_filters(self, mock_kg_service):
-        mock_kg_service.execute.return_value = [
-            {"total": 1}
-        ]
-        mock_kg_service.execute.return_value = [
-            {
-                "d": {
-                    "orpha_id": "ORPHA:635",
-                    "name": "Niemann-Pick disease type C",
-                    "prevalence": 0.09,
-                    "prevalence_category": "<1/1,000,000",
-                    "inheritance": ["Autosomal recessive"],
-                    "age_of_onset": ["Infancy"],
-                    "genes": [{"hgnc_id": "HGNC:7852", "symbol": "NPC1", "name": "NPC1"}],
-                    "pathways": [{"reactome_id": "R-HSA-123", "name": "Cholesterol metabolism"}],
-                    "phenotypes": ["Hepatosplenomegaly"],
-                    "existing_treatments": ["Miglustat"],
-                    "unmet_need_score": 0.92,
+        mock_kg_service.execute.side_effect = [
+            [{"total": 1}],
+            [
+                {
+                    "d": {
+                        "id": "ORPHA:635",
+                        "name": "Niemann-Pick disease type C",
+                        "prevalence": 0.09,
+                        "prevalence_category": "<1/1,000,000",
+                        "inheritance": ["Autosomal recessive"],
+                        "age_of_onset": ["Infancy"],
+                        "genes": [{"hgnc_id": "HGNC:7852", "symbol": "NPC1", "name": "NPC1"}],
+                        "pathways": [{"reactome_id": "R-HSA-123", "name": "Cholesterol metabolism"}],
+                        "phenotypes": ["Hepatosplenomegaly"],
+                        "existing_treatments": ["Miglustat"],
+                        "unmet_need_score": 0.92,
+                    }
                 }
-            }
+            ]
         ]
         
         diseases, total = mock_kg_service.search_diseases()
@@ -48,28 +49,30 @@ class TestKGService:
         assert diseases[0].name == "Niemann-Pick disease type C"
     
     def test_get_disease_found(self, mock_kg_service):
-        mock_kg_service.execute.return_value = [{
-            "d": {
-                "orpha_id": "ORPHA:635",
-                "name": "Niemann-Pick disease type C",
-                "prevalence": 0.09,
-                "prevalence_category": "<1/1,000,000",
-                "inheritance": ["Autosomal recessive"],
-                "age_of_onset": ["Infancy"],
-                "phenotypes": ["Hepatosplenomegaly"],
-                "existing_treatments": ["Miglustat"],
-                "unmet_need_score": 0.92,
-                "description": "A rare genetic disorder...",
-                "synonyms": ["NPC"],
-                "omim_ids": ["257220"],
-                "mondo_id": "MONDO:0009593",
-                "icar_id": "ICAR:0000001",
-                "created_at": "2024-01-01T00:00:00Z",
-                "updated_at": "2024-01-01T00:00:00Z",
-            },
-            "genes": [{"hgnc_id": "HGNC:7852", "symbol": "NPC1", "name": "NPC1"}],
-            "pathways": [{"reactome_id": "R-HSA-123", "name": "Cholesterol metabolism"}],
-        }]
+        mock_kg_service.execute.side_effect = [
+            [{
+                "d": {
+                    "id": "ORPHA:635",
+                    "name": "Niemann-Pick disease type C",
+                    "prevalence": 0.09,
+                    "prevalence_category": "<1/1,000,000",
+                    "inheritance": ["Autosomal recessive"],
+                    "age_of_onset": ["Infancy"],
+                    "phenotypes": ["Hepatosplenomegaly"],
+                    "existing_treatments": ["Miglustat"],
+                    "unmet_need_score": 0.92,
+                    "description": "A rare genetic disorder...",
+                    "synonyms": ["NPC"],
+                    "omim_ids": ["257220"],
+                    "mondo_id": "MONDO:0009593",
+                    "icar_id": "ICAR:0000001",
+                    "created_at": "2024-01-01T00:00:00Z",
+                    "updated_at": "2024-01-01T00:00:00Z",
+                }
+            }],
+            [{"g": {"hgnc_id": "HGNC:7852", "symbol": "NPC1", "name": "NPC1"}}],
+            [{"p": {"reactome_id": "R-HSA-123", "name": "Cholesterol metabolism"}}],
+        ]
         
         disease = mock_kg_service.get_disease("ORPHA:635")
         
