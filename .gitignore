@@ -25,17 +25,14 @@ env/
 .DS_Store
 Thumbs.db
 
-# Project artifacts
+# Project artifacts (data, models, logs)
 *.log
 *.pid
-data/kuzu_db/
-data/chroma_db/
-data/molecular/
-data/safety/
-data/raw/
-data/processed/
+data/
 models/
 mlruns/
+prototype/data/
+prototype/models/
 *.db
 *.pkl
 *.pt
@@ -43,12 +40,7 @@ mlruns/
 
 # Node
 node_modules/
-dist/
 .vite/
-
-# DVC
-.dvc/
-.dvcignore
 
 # Docker
 .dockerignore

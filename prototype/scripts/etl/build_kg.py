@@ -397,7 +397,7 @@ def build_kg(processed_dir: Path, kuzu_db_path: Path):
 
         # Verify relationships - try to get relationship types and counts
         try:
-            result = conn.execute("MATCH ()-[r]->() RETURN type(r) as rel, count(*) as count")
+            result = conn.execute("MATCH ()-[r]->() RETURN label(r) as rel, count(*) as count")
             logger.info("kg_edge_counts")
             while result.has_next():
                 row = result.get_next()

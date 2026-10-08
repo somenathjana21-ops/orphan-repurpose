@@ -1,30 +1,30 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { candidatesApi, diseasesApi } from '../services/api'
-import type { Candidate } from '../types'
 
 export function CandidateList() {
   const { orphaId } = useParams<{ orphaId: string }>()
-  const navigate = useNavigate()
 
   const { data: disease, isLoading: diseaseLoading } = useQuery({
     queryKey: ['disease', orphaId],
-    queryFn: () => diseasesApi.get(orphaId),
+    queryFn: () => diseasesApi.get(orphaId!),
     enabled: !!orphaId,
   })
 
-  const { data: candidates, isLoading, error } = useQuery({
+  const { data: response, isLoading, error } = useQuery({
     queryKey: ['candidates', orphaId],
-    queryFn: () => candidatesApi.generate(orphaId),
+    queryFn: () => candidatesApi.generate(orphaId!),
     enabled: !!orphaId,
   })
+
+  const candidates = response?.candidates || []
 
   const mutation = useMutation({
-    mutationFn: (candidateId: string) => 
+    mutationFn: (candidateId: string) =>
       candidatesApi.validate(candidateId, {
         validator: 'clinician',
         assessment: 'plausible',
-        rationale: 'Looks promising based on mechanism and safety profile.'
+        rationale: 'Looks promising based on mechanism and safety profile.',
       }),
     onSuccess: () => {
       // Refetch the candidate list after validation
@@ -36,7 +36,7 @@ export function CandidateList() {
     return (
       <div className="p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Error loading candidates</h2>
-        <p className="text-gray-600">{error.message}</p>
+        <p className="text-gray-600">{(error as Error).message}</p>
       </div>
     )
   }
@@ -65,17 +65,12 @@ export function CandidateList() {
           <h1 className="text-2xl font-bold text-gray-900">
             Repurposing Candidates for {disease.name}
           </h1>
-          <p className="text-gray-600">
-            ORPHA Code: {disease.orpha_id}
-          </p>
+          <p className="text-gray-600">ORPHA Code: {disease.orpha_id}</p>
         </div>
         <div>
-          <a
-            href={`/diseases/${disease.orpha_id}`}
-            className="btn-secondary"
-          >
+          <Link to={`/diseases/${disease.orpha_id}`} className="btn-secondary">
             Back to Disease Details
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -90,7 +85,12 @@ export function CandidateList() {
               <div className="card-body p-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">{candidate.drug_name}</h2>
+                    <Link
+                      to={`/candidates/${candidate.candidate_id}`}
+                      className="text-xl font-bold text-blue-600 hover:underline"
+                    >
+                      {candidate.drug_name}
+                    </Link>
                     <p className="text-sm text-gray-600">Drug ID: {candidate.drug_id}</p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -104,7 +104,8 @@ export function CandidateList() {
                       {candidate.indication_probability.toFixed(2)}
                     </p>
                     <p className="text-xs text-gray-500 ml-2">
-                      ({candidate.confidence_interval[0].toFixed(2)} - {candidate.confidence_interval[1].toFixed(2)})
+                      ({candidate.confidence_interval[0].toFixed(2)} -{' '}
+                      {candidate.confidence_interval[1].toFixed(2)})
                     </p>
                   </div>
                 </div>
@@ -117,25 +118,34 @@ export function CandidateList() {
                 <div className="mt-4">
                   <h3 className="text-lg font-semibold text-gray-800 mb-2">Safety Flags</h3>
                   <div className="flex flex-wrap gap-2">
-                    <span className="px-3 py-1 text-xs font-medium rounded 
-                      {candidate.safety_flags.overall === 'pass' && 'bg-green-50 text-green-800'}
-                      {candidate.safety_flags.overall === 'caution' && 'bg-amber-50 text-amber-800'}
-                      {candidate.safety_flags.overall === 'fail' && 'bg-red-50 text-red-800'}
-                    ">
-                      {candidate.safety_flags.overall === 'pass' && 'Pass'}
-                      {candidate.safety_flags.overall === 'caution' && 'Caution'}
-                      {candidate.safety_flags.overall === 'fail' && 'Fail'}
+                    <span
+                      className={`px-3 py-1 text-xs font-medium rounded ${
+                        candidate.safety_flags.overall === 'pass'
+                          ? 'bg-green-50 text-green-800'
+                          : candidate.safety_flags.overall === 'caution'
+                            ? 'bg-amber-50 text-amber-800'
+                            : 'bg-red-50 text-red-800'
+                      }`}
+                    >
+                      {candidate.safety_flags.overall === 'pass'
+                        ? 'Pass'
+                        : candidate.safety_flags.overall === 'caution'
+                          ? 'Caution'
+                          : 'Fail'}
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-4 flex justify-end">
+                <div className="mt-4 flex justify-end gap-2">
+                  <Link to={`/candidates/${candidate.candidate_id}`} className="btn-secondary">
+                    View Details
+                  </Link>
                   <button
                     onClick={() => mutation.mutate(candidate.candidate_id)}
-                    disabled={mutation.isLoading}
+                    disabled={mutation.isPending}
                     className="btn-primary"
                   >
-                    {mutation.isLoading ? 'Validating...' : 'Validate as Plausible'}
+                    {mutation.isPending ? 'Validating...' : 'Validate as Plausible'}
                   </button>
                 </div>
               </div>

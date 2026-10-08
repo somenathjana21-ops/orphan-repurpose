@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Filter, ChevronDown, ChevronUp, Loader2, AlertCircle, Info } from 'lucide-react'
+import { Search, Filter, ChevronDown, ChevronUp, AlertCircle, Info } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { api } from '../services/api'
+import { diseasesApi } from '../services/api'
 import type { DiseaseSearchResult } from '../types'
 
 export function Dashboard() {
@@ -18,7 +18,7 @@ export function Dashboard() {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['diseases', { query, prevalenceMax, gene, pathway, page, pageSize, sortBy, sortOrder }],
-    queryFn: () => api.diseases.search({
+    queryFn: () => diseasesApi.search({
       query: query || undefined,
       prevalenceMax: prevalenceMax ? Number(prevalenceMax) : undefined,
       gene: gene || undefined,
@@ -108,7 +108,7 @@ export function Dashboard() {
                   min="0"
                   placeholder="e.g., 10"
                   value={prevalenceMax}
-                  onChange={(e) => { setPrevalenceMax(e.target.value); setPage(1); }}
+                  onChange={(e) => { setPrevalenceMax(e.target.value === '' ? '' : Number(e.target.value)); setPage(1); }}
                   className="input"
                 />
               </div>

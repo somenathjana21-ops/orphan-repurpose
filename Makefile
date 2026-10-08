@@ -37,7 +37,7 @@ FRONTEND_DIR := ./prototype/frontend
 # =============================================================================
 # DATA DOWNLOAD
 # =============================================================================
-data-download: download-orpha download-drugcentral download-tdc download-faers download-chembl download-reactome download-pubmed download-uniprot
+data-download: download-orpha download-drugcentral download-tdc download-faers download-chembl download-reactome download-pubmed download-uniprot generate-demo-data
 
 download-orpha:
 	@echo "📥 Downloading Orphanet data..."

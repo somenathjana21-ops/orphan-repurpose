@@ -1,2 +1,0 @@
-struct_id	umls_cui	sme_id	indication_type	max_phase_for_ind	approval_status	approval_year	source
-D00001	C0012345	SM123	Treatment	4	FDA	2020	DrugCentral

@@ -158,6 +158,11 @@ def train_rgcn(data: HeteroData, node_counts: dict, node_id_maps: dict, output_p
         src, rel, dst = et
         edge_index_dict[(src, rel, dst)] = data[et].edge_index
     
+    # Create lowercase node_counts for training (edge types use lowercase)
+    node_counts_lower = {k.lower(): v for k, v in node_counts.items()}
+    # Map lowercase edge type names back to original case for embedding lookup
+    case_map = {k.lower(): k for k in node_counts}
+    
     # Model
     model = RGCN(
         num_nodes_dict=node_counts,
@@ -188,8 +193,8 @@ def train_rgcn(data: HeteroData, node_counts: dict, node_id_maps: dict, output_p
             num_pos = pos_edge_index.size(1)
             num_neg = num_pos * 5
             
-            neg_src = torch.randint(0, node_counts[src], (num_neg,))
-            neg_dst = torch.randint(0, node_counts[dst], (num_neg,))
+            neg_src = torch.randint(0, node_counts_lower[src], (num_neg,))
+            neg_dst = torch.randint(0, node_counts_lower[dst], (num_neg,))
             neg_edge_index = torch.stack([neg_src, neg_dst], dim=0)
             
             # Combine positive and negative
@@ -210,9 +215,9 @@ def train_rgcn(data: HeteroData, node_counts: dict, node_id_maps: dict, output_p
             # Get embeddings
             h_dict = model(edge_index_dict, edge_type_dict)
             
-            # Compute scores for this relation
-            src_emb = h_dict[src.lower()]
-            dst_emb = h_dict[dst.lower()]
+            # Compute scores for this relation (h_dict uses original case keys)
+            src_emb = h_dict[case_map[src]]
+            dst_emb = h_dict[case_map[dst]]
             
             src_nodes = all_edge_index[0]
             dst_nodes = all_edge_index[1]

@@ -1,26 +1,25 @@
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { diseasesApi } from '../services/api'
-import type { DiseaseDetail, Gene, Pathway } from '../types'
 
 export function DiseaseDetail() {
   const { orphaId } = useParams<{ orphaId: string }>()
 
   const { data: disease, isLoading, error } = useQuery({
     queryKey: ['disease', orphaId],
-    queryFn: () => diseasesApi.get(orphaId),
+    queryFn: () => diseasesApi.get(orphaId!),
     enabled: !!orphaId,
   })
 
   const { data: genes, isLoading: genesLoading } = useQuery({
     queryKey: ['disease-genes', orphaId],
-    queryFn: () => diseasesApi.getGenes(orphaId),
+    queryFn: () => diseasesApi.getGenes(orphaId!),
     enabled: !!orphaId,
   })
 
   const { data: pathways, isLoading: pathwaysLoading } = useQuery({
     queryKey: ['disease-pathways', orphaId],
-    queryFn: () => diseasesApi.getPathways(orphaId),
+    queryFn: () => diseasesApi.getPathways(orphaId!),
     enabled: !!orphaId,
   })
 
@@ -28,12 +27,12 @@ export function DiseaseDetail() {
     return (
       <div className="p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Error loading disease</h2>
-        <p className="text-gray-600">{error.message}</p>
+        <p className="text-gray-600">{(error as Error).message}</p>
       </div>
     )
   }
 
-  if (!disease || isLoading || genesLoading || pathwaysLoading) {
+  if (!disease || isLoading) {
     return (
       <div className="p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Loading disease details...</h2>
@@ -86,16 +85,18 @@ export function DiseaseDetail() {
 
       {/* Genes */}
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Associated Genes ({genes?.length || 0})</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">
+          Associated Genes ({genes?.length || 0})
+        </h2>
         {genesLoading ? (
           <p className="text-gray-500">Loading genes...</p>
-        ) : genes?.length === 0 ? (
+        ) : !genes || genes.length === 0 ? (
           <p className="text-gray-500">No genes associated with this disease.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {genes.slice(0, 10).map((gene) => (
-              <span key={gene.hgnc_id} className="bg-blue-50 px-3 py-1.5 text-xs font-medium rounded text-blue-800">
-                {gene.symbol}
+            {genes.slice(0, 10).map((symbol) => (
+              <span key={symbol} className="bg-blue-50 px-3 py-1.5 text-xs font-medium rounded text-blue-800">
+                {symbol}
               </span>
             ))}
             {genes.length > 10 && (
@@ -109,16 +110,18 @@ export function DiseaseDetail() {
 
       {/* Pathways */}
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Associated Pathways ({pathways?.length || 0})</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">
+          Associated Pathways ({pathways?.length || 0})
+        </h2>
         {pathwaysLoading ? (
           <p className="text-gray-500">Loading pathways...</p>
-        ) : pathways?.length === 0 ? (
+        ) : !pathways || pathways.length === 0 ? (
           <p className="text-gray-500">No pathways associated with this disease.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {pathways.slice(0, 10).map((pathway) => (
-              <span key={pathway.reactome_id} className="bg-gray-50 px-3 py-1.5 text-xs font-medium rounded text-gray-800">
-                {pathway.name}
+            {pathways.slice(0, 10).map((name) => (
+              <span key={name} className="bg-gray-50 px-3 py-1.5 text-xs font-medium rounded text-gray-800">
+                {name}
               </span>
             ))}
             {pathways.length > 10 && (
@@ -160,10 +163,7 @@ export function DiseaseDetail() {
 
       {/* Action Button */}
       <div className="mt-8">
-        <a
-          href={`/diseases/${disease.orpha_id}/candidates`}
-          className="btn-primary px-6 py-2"
-        >
+        <a href={`/diseases/${disease.orpha_id}/candidates`} className="btn-primary px-6 py-2">
           Generate Repurposing Candidates
         </a>
       </div>

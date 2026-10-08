@@ -1,2 +1,0 @@
-struct_id	smiles	inchi	inchikey	cas	molecular_weight	xlogp	tpsa	rotatable_bonds	hba	hbd	charge
-D00001	CCO	InChI=1S/C2H6O/c1-2-3/h3H,2H2,1H3	BSYNRYMUTXBXSQ-UHFFFAOYSA-N	67-56-1	46.07	-0.31	63.2	1	1	1	0

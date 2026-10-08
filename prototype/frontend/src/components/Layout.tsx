@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { Menu, X, Search, Home, FlaskConical, FileText, Settings } from 'lucide-react'
+import { Menu, Home, FlaskConical, FileText } from 'lucide-react'
 import { useState } from 'react'
 
 const navigation = [
@@ -10,7 +10,7 @@ const navigation = [
   { name: 'Dossiers', href: '/dossier', icon: FileText },
 ]
 
-export function Layout({ children }: { children: ReactNode }) {
+export function Layout({ children }: { children?: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
 
@@ -73,22 +73,11 @@ export function Layout({ children }: { children: ReactNode }) {
           </button>
           
           <div className="flex-1 lg:flex-none" />
-          
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:block relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="search"
-                placeholder="Search diseases, genes, pathways..."
-                className="input pl-10 w-64"
-              />
-            </div>
-          </div>
         </header>
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <Outlet />
+          {children ?? <Outlet />}
         </main>
       </div>
     </div>

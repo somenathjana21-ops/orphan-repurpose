@@ -21,7 +21,7 @@ export function DossierBuilder() {
   ]
 
   const mutation = useMutation({
-    mutationFn: (data: { disease_id: string; candidate_ids: string[]; include_sections: string[] }) => 
+    mutationFn: (data: { disease_id: string; candidate_ids: string[]; include_sections: string[] }) =>
       dossierApi.generate(data),
     onSuccess: (data) => {
       setDossier(data)
@@ -30,7 +30,7 @@ export function DossierBuilder() {
     onError: (error: any) => {
       setError(error.response?.data?.detail || error.message)
       setIsGenerating(false)
-    }
+    },
   })
 
   const handleGenerate = () => {
@@ -168,7 +168,7 @@ export function DossierBuilder() {
             <div>
               <h3 className="text-lg font-semibold text-gray-800 mb-2">Dossier Metadata</h3>
               <p className="text-gray-700">
-                Generated at: {new Date(dossier.generated_at).toLocaleString()}
+                Generated at: {new Date(dossier.dossier_json.generated_at).toLocaleString()}
               </p>
               <p className="text-gray-700">
                 Audit Trail ID: {dossier.audit_trail_id}
