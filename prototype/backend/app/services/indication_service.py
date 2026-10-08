@@ -49,18 +49,29 @@ class IndicationService:
             with open(self.model_path, "rb") as f:
                 ckpt = pickle.load(f)
             self.config = ckpt.get("config", {})
-            self.model = IndicationModel(
-                node_feature_dim=self.config.get("node_feature_dim", 78),
-                kg_dim=self.config.get("kg_dim", 256),
-                hidden_dim=self.config.get("hidden_dim", 256),
-                num_layers=self.config.get("num_layers", 3),
-                num_heads=self.config.get("num_heads", 4),
-            )
+            arch = self.config.get("architecture", "DualEncoderCrossAttention")
+            
+            if arch == "SimpleIndicationModel_MLP":
+                from app.ml.indication_model import SimpleIndicationModel
+                self.model = SimpleIndicationModel(
+                    fp_dim=self.config.get("fp_dim", 1024),
+                    kg_dim=self.config.get("kg_dim", 256),
+                    hidden_dim=self.config.get("hidden_dim", 128),
+                )
+            else:
+                self.model = IndicationModel(
+                    node_feature_dim=self.config.get("node_feature_dim", 78),
+                    kg_dim=self.config.get("kg_dim", 256),
+                    hidden_dim=self.config.get("hidden_dim", 256),
+                    num_layers=self.config.get("num_layers", 3),
+                    num_heads=self.config.get("num_heads", 4),
+                )
             self.model.load_state_dict(ckpt["model_state_dict"])
             self.model.eval()
             self.temperature = ckpt.get("temperature", 1.0)
             self.conformal_q = ckpt.get("conformal_q")
             self.drug_smiles = ckpt.get("drug_smiles", {})
+            self.drug_fingerprints = ckpt.get("drug_fingerprints", {})
             self.disease_map = ckpt.get("disease_map", {})
             self.disease_embeddings = ckpt.get("disease_embeddings")
             self.metrics = ckpt.get("metrics", {})
@@ -70,6 +81,7 @@ class IndicationService:
                 drugs=len(self.drug_smiles),
                 diseases=len(self.disease_map),
                 temperature=round(self.temperature, 3),
+                architecture=arch,
             )
             return True
         except Exception as e:
@@ -99,6 +111,7 @@ class IndicationService:
         if disease_key not in self.disease_map:
             return []
 
+        arch = self.config.get("architecture", "DualEncoderCrossAttention")
         ids = drug_ids or list(self.drug_smiles.keys())
         ids = [d for d in ids if d in self.drug_smiles]
         if not ids:
@@ -112,9 +125,18 @@ class IndicationService:
         results = []
         with torch.no_grad():
             for did in ids:
-                feats, edge_index = self._graph(did)
-                batch = torch.zeros(feats.size(0), dtype=torch.long)
-                logits = self.model(feats, edge_index, batch, disease_emb)
+                if arch == "SimpleIndicationModel_MLP":
+                    # Use pre-computed Morgan fingerprints
+                    drug_fps = getattr(self, 'drug_fingerprints', {})
+                    if did not in drug_fps:
+                        continue
+                    fp = torch.tensor(drug_fps[did], dtype=torch.float32).unsqueeze(0)
+                    logits = self.model(fp, disease_emb)
+                else:
+                    # Use graph-based encoder
+                    feats, edge_index = self._graph(did)
+                    batch = torch.zeros(feats.size(0), dtype=torch.long)
+                    logits = self.model(feats, edge_index, batch, disease_emb)
                 # temperature-scale then sigmoid
                 scaled = logits / max(self.temperature, 1e-3)
                 prob = float(torch.sigmoid(scaled).item())

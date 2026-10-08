@@ -208,6 +208,55 @@ class IndicationModel(nn.Module):
 
 
 # ---------------------------------------------------------------------------
+# Lightweight MLP model (for CPU-constrained training)
+# ---------------------------------------------------------------------------
+class MorganFingerprintEncoder(nn.Module):
+    """Simple MLP encoder for Morgan fingerprints."""
+
+    def __init__(self, input_dim: int = 1024, hidden_dim: int = 128, dropout: float = 0.1):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+        )
+        self.output_dim = hidden_dim
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
+
+class SimpleIndicationModel(nn.Module):
+    """MLP-based indication model: drug_fp + disease_emb -> score."""
+
+    def __init__(self, fp_dim: int = 1024, kg_dim: int = 256, hidden_dim: int = 128):
+        super().__init__()
+        self.drug_encoder = MorganFingerprintEncoder(fp_dim, hidden_dim)
+        self.disease_proj = nn.Sequential(
+            nn.Linear(kg_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+        )
+        self.fusion = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1),
+        )
+
+    def forward(self, drug_fp: torch.Tensor, disease_kg: torch.Tensor) -> torch.Tensor:
+        d_emb = self.drug_encoder(drug_fp)
+        s_emb = self.disease_proj(disease_kg)
+        fused = torch.cat([d_emb, s_emb], dim=-1)
+        return self.fusion(fused).squeeze(-1)
+
+
+# ---------------------------------------------------------------------------
 # Losses
 # ---------------------------------------------------------------------------
 class FocalLoss(nn.Module):

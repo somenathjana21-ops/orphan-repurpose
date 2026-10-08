@@ -56,21 +56,37 @@ def build_pairs(processed_dir: Path, kg: dict):
     fda = pd.read_parquet(dc / "drugcentral_fda_approved.parquet")
     indications = pd.read_parquet(dc / "drugcentral_indications.parquet")
 
-    # drug id -> smiles (DrugCentral struct_id, matching the KG drug node ids)
+    # drug id -> smiles (matching the KG drug node ids)
     drug_smiles: dict[str, str] = {}
     for _, row in fda.iterrows():
-        did = f"drugcentral:{row['struct_id']}"
+        struct_id = str(row["struct_id"])
+        if struct_id.startswith("chembl:"):
+            did = struct_id
+        else:
+            did = f"drugcentral:{struct_id}"
         smi = row.get("smiles")
         if isinstance(smi, str) and smi:
             drug_smiles[did] = smi
 
-    # known indication pairs: drug -> disease node created from UMLS CUI
+    # known indication pairs: drug -> disease node
+    # Supports both old format (umls_cui -> UMLS:xxx) and new format (disease_id)
     pos_pairs = set()
     for _, row in indications.iterrows():
-        did = f"drugcentral:{row['struct_id']}"
-        cui = row.get("umls_cui")
-        if did in drug_smiles and isinstance(cui, str) and cui:
-            pos_pairs.add((did, f"UMLS:{cui}"))
+        struct_id = str(row["struct_id"])
+        if struct_id.startswith("chembl:"):
+            did = struct_id
+        else:
+            did = f"drugcentral:{struct_id}"
+        if did not in drug_smiles:
+            continue
+        # Try disease_id first (new merged format), then umls_cui (old format)
+        disease_id = row.get("disease_id")
+        if isinstance(disease_id, str) and disease_id:
+            pos_pairs.add((did, disease_id))
+        else:
+            cui = row.get("umls_cui")
+            if isinstance(cui, str) and cui:
+                pos_pairs.add((did, f"UMLS:{cui}"))
 
     # disease embeddings from the RGCN output
     node_id_maps = kg["node_id_maps"]
@@ -108,10 +124,12 @@ def train(
     processed_dir: Path,
     kg_embeddings_path: Path,
     output_path: Path,
-    epochs: int = 50,
-    batch_size: int = 32,
+    epochs: int = 10,
+    batch_size: int = 128,
     lr: float = 1e-3,
-    hidden_dim: int = 256,
+    hidden_dim: int = 64,
+    max_train_pairs: int = 5000,
+    max_val_pairs: int = 1000,
 ):
     _set_seed()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -159,6 +177,18 @@ def train(
         train=len(train_pairs), val=len(val_pairs), cal=len(cal_pairs),
         train_pos=len(ptr), val_pos=len(pva), cal_pos=len(pcal),
     )
+
+    # Downsample for CPU training speed (prototype)
+    if len(train_pairs) > max_train_pairs:
+        rng3 = random.Random(SEED)
+        rng3.shuffle(train_pairs)
+        train_pairs = train_pairs[:max_train_pairs]
+        logger.info("train_pairs_downsampled", original=len(ptr) + len(ntr), new=len(train_pairs))
+    if len(val_pairs) > max_val_pairs:
+        rng3 = random.Random(SEED + 1)
+        rng3.shuffle(val_pairs)
+        val_pairs = val_pairs[:max_val_pairs]
+        logger.info("val_pairs_downsampled", original=len(pva) + len(nva), new=len(val_pairs))
 
     model = IndicationModel(hidden_dim=hidden_dim).to(device)
     criterion = FocalLoss(gamma=2.0, alpha=0.25)

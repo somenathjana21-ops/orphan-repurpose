@@ -210,14 +210,16 @@ def load_diseases(conn: kuzu.Connection, processed_dir: Path):
         logger.info("loading_diseases_from_drugcentral_indications", count=len(df))
         
         for _, row in tqdm(df.iterrows(), total=len(df), desc="Loading diseases from DrugCentral indications"):
-            # Use UMLS CUI as disease ID if available
-            if pd.notna(row.get("umls_cui")):
-                disease_id = f"UMLS:{row["umls_cui"]}"
-                disease_name = str(row["umls_cui"])  # In reality, we'd map UMLS to name
+            # Use disease_id if available (new merged format), else UMLS CUI
+            disease_id = row.get("disease_id")
+            if isinstance(disease_id, str) and disease_id:
+                disease_name = row.get("mesh_heading", disease_id)
+            elif pd.notna(row.get("umls_cui")):
+                disease_id = f"UMLS:{row['umls_cui']}"
+                disease_name = str(row["umls_cui"])
             else:
-                # Fallback to struct_id based ID
-                disease_id = f"DRUGCENTRAL:{row["struct_id"]}"
-                disease_name = f"DrugCentral compound {row["struct_id"]}"
+                disease_id = f"DRUGCENTRAL:{row['struct_id']}"
+                disease_name = f"DrugCentral compound {row['struct_id']}"
             query = """
             MERGE (d:Disease {id: $id})
             ON CREATE SET d.name = $name
@@ -249,7 +251,7 @@ def load_genes(conn: kuzu.Connection, processed_dir: Path):
 
 
 def load_drugs(conn: kuzu.Connection, processed_dir: Path):
-    """Load FDA-approved drugs from DrugCentral."""
+    """Load FDA-approved drugs from DrugCentral and ChEMBL."""
     path = processed_dir / "drugcentral" / "drugcentral_fda_approved.parquet"
     if not path.exists():
         logger.warning("fda_approved_parquet_not_found", path=str(path))
@@ -259,6 +261,13 @@ def load_drugs(conn: kuzu.Connection, processed_dir: Path):
     logger.info("loading_drugs", count=len(df))
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="Loading drugs"):
+        # Determine drug ID format: chembl:xxx for ChEMBL drugs, drugcentral:xxx for synthetic
+        struct_id = str(row["struct_id"])
+        if struct_id.startswith("chembl:"):
+            drug_id = struct_id
+        else:
+            drug_id = f"drugcentral:{struct_id}"
+        
         query = """
         MERGE (d:Drug {id: $id})
         ON CREATE SET d.name = $name, d.smiles = $smiles, d.inchi = $inchi, d.inchikey = $inchikey,
@@ -269,8 +278,8 @@ def load_drugs(conn: kuzu.Connection, processed_dir: Path):
                       d.approval_status = $astatus, d.cas = $cas
         """
         conn.execute(query, {
-            "id": f"drugcentral:{row['struct_id']}",
-            "name": row.get("name", ""),  # Will be filled from synonyms
+            "id": drug_id,
+            "name": row.get("name", ""),
             "smiles": row.get("smiles"),
             "inchi": row.get("inchi"),
             "inchikey": row.get("inchikey"),
@@ -294,7 +303,7 @@ def load_drugs(conn: kuzu.Connection, processed_dir: Path):
 
 
 def load_targets(conn: kuzu.Connection, processed_dir: Path):
-    """Load targets from DrugCentral."""
+    """Load targets from DrugCentral and ChEMBL."""
     path = processed_dir / "drugcentral" / "drugcentral_targets.parquet"
     if not path.exists():
         logger.warning("targets_parquet_not_found", path=str(path))
@@ -302,12 +311,18 @@ def load_targets(conn: kuzu.Connection, processed_dir: Path):
     df = pd.read_parquet(path)
     logger.info("loading_targets", count=len(df))
     for _, row in tqdm(df.iterrows(), total=len(df), desc="Loading targets"):
+        # Determine target ID format
+        target_id = str(row["target_id"])
+        if target_id.startswith("chembl:"):
+            tgt_id = target_id
+        else:
+            tgt_id = f"target:{target_id}"
         query = """
         MERGE (t:Target {id: $id})
         ON CREATE SET t.name = $name, t.gene = $gene, t.uniprot = $uniprot
         """
         conn.execute(query, {
-            "id": f"target:{row['target_id']}",
+            "id": tgt_id,
             "name": row.get("target_name", ""),
             "gene": row.get("gene", ""),
             "uniprot": row.get("uniprot", ""),
@@ -323,8 +338,7 @@ def load_pathways(conn: kuzu.Connection, processed_dir: Path):
 def load_treats(conn: kuzu.Connection, processed_dir: Path):
     """Create TREATS edges from known drug->indication pairs.
 
-    DrugCentral indications carry a UMLS CUI; the disease nodes created from
-    those same CUIs use the id ``UMLS:<cui>``.
+    Supports both old format (umls_cui -> UMLS:xxx) and new format (disease_id).
     """
     path = processed_dir / "drugcentral" / "drugcentral_indications.parquet"
     if not path.exists():
@@ -333,9 +347,19 @@ def load_treats(conn: kuzu.Connection, processed_dir: Path):
     df = pd.read_parquet(path)
     n = 0
     for _, row in tqdm(df.iterrows(), total=len(df), desc="Loading TREATS"):
-        cui = row.get("umls_cui")
-        if not isinstance(cui, str) or not cui:
-            continue
+        # Try disease_id first (new merged format), then umls_cui (old format)
+        disease_id = row.get("disease_id")
+        if not (isinstance(disease_id, str) and disease_id):
+            cui = row.get("umls_cui")
+            if not (isinstance(cui, str) and cui):
+                continue
+            disease_id = f"UMLS:{cui}"
+        # Determine drug ID format
+        struct_id = str(row["struct_id"])
+        if struct_id.startswith("chembl:"):
+            drug_id = struct_id
+        else:
+            drug_id = f"drugcentral:{struct_id}"
         try:
             conn.execute(
                 """
@@ -343,8 +367,8 @@ def load_treats(conn: kuzu.Connection, processed_dir: Path):
                 CREATE (d)-[:TREATS {evidence: "DrugCentral", confidence: 1.0}]->(dis)
                 """,
                 {
-                    "drug_id": f"drugcentral:{row['struct_id']}",
-                    "disease_id": f"UMLS:{cui}",
+                    "drug_id": drug_id,
+                    "disease_id": disease_id,
                 },
             )
             n += 1
@@ -375,10 +399,19 @@ def load_relationships(conn: kuzu.Connection, processed_dir: Path):
     path = processed_dir / "drugcentral" / "drugcentral_drug_target.parquet"
     if path.exists():
         df = pd.read_parquet(path)
-        # Filter to FDA-approved drugs
-        fda_drugs = set()  # Would need to load from fda_approved
-        # For now, load all
         for _, row in tqdm(df.iterrows(), total=len(df), desc="Loading HAS_TARGET"):
+            # Determine drug ID format
+            struct_id = str(row["struct_id"])
+            if struct_id.startswith("chembl:"):
+                drug_id = struct_id
+            else:
+                drug_id = f"drugcentral:{struct_id}"
+            # Determine target ID format
+            target_id = str(row["target_id"])
+            if target_id.startswith("chembl:"):
+                tgt_id = target_id
+            else:
+                tgt_id = f"target:{target_id}"
             query = """
             MATCH (d:Drug {id: $drug_id}), (t:Target {id: $target_id})
             CREATE (d)-[:HAS_TARGET {
@@ -389,8 +422,8 @@ def load_relationships(conn: kuzu.Connection, processed_dir: Path):
             }]->(t)
             """
             conn.execute(query, {
-                "drug_id": f"drugcentral:{row['struct_id']}",
-                "target_id": f"target:{row['target_id']}",
+                "drug_id": drug_id,
+                "target_id": tgt_id,
                 "action_type": row.get("action_type"),
                 "binding_value": row.get("binding_value"),
                 "binding_unit": row.get("binding_unit"),

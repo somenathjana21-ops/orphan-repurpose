@@ -2,9 +2,10 @@
 
 ## 0. Quick Resume (≤10 lines: where am I, what's next, active project path)
 - **Mission**: Build OrphanRepurpose — AI-powered drug repurposing platform for rare/orphan diseases
-- **Current Phase**: Phase 5 — Build (M2: Indication Model — 90% complete)
+- **Current Phase**: Phase 5 — Build (M2: Indication Model — retraining on ChEMBL-augmented dataset)
 - **Active Path**: /workspace/dev/orphan-repurpose/
-- **Next Action**: M3 — Explainability Stack (KG paths, SHAP, counterfactuals, BioMistral rationale)
+- **Next Action**: Complete M2 retraining on expanded dataset (1,645 drugs, 1,470 diseases, 14,578 indications), measure Recall@20 improvement
+- **Recall Gap**: Initial Recall@20 = 37% (target ≥70%) — root cause: data-scale limited (120 drugs × 61 diseases). ChEMBL augmentation provides 100× more data.
 
 ## 1. Mission & Chosen Opportunity (1 paragraph + why)
 **OrphanRepurpose** — An AI-powered platform that identifies and validates drug repurposing opportunities for rare and orphan diseases by integrating a curated rare-disease knowledge graph, multimodal public datasets (DrugCentral, TDC, FAERS, ClinicalTrials.gov, PubMed, ChEMBL), and clinician-in-the-loop explainable AI. The platform outputs prioritized, validation-ready repurposing candidates with audit trails suitable for FDA Orphan Drug Designation submissions. **Why**: Highest weighted score (4.70/5.0) across all criteria. Unmatched prototype feasibility with 6+ public datasets. Strongest pain/WTP via Orphan Drug Act incentives (7-yr exclusivity, tax credits). Regulatory tailwind from FDA repurposing approvals + orphan pathways. Differentiation white space: PatSnap 2026 shows rare/orphan "underserved" vs COVID-19/oncology dominance. Defensible moat via curated KG + clinician feedback loops + explainable audit trail. Lower regulatory risk: approved drugs = known safety, no novel tox.
@@ -96,12 +97,28 @@
 - BioMistral-7B latency on CPU? → Test during M3; fallback to smaller model if >5 sec
 
 ## 8. Lessons Learned (mistakes, what to do differently)
-- (will populate during execution)
+- Initial synthetic dataset (120 drugs) was too small for meaningful model training — should have started with ChEMBL data from day one
+- DrugCentral/Orphanet downloads are bot-blocked — ChEMBL API is the reliable public data source for drug-disease pairs
+- RGCN training on small KG (16 nodes) produces near-random embeddings — need 100+ nodes per type for meaningful link prediction
+- Always validate data format compatibility before retraining — the merge script changed schema (disease_id column), requiring patches to build_kg.py and train_indication_model.py
+- CPU training of GraphSAGE on 1,645 drugs is too slow — use Morgan fingerprints + MLP for CPU, reserve graph-based models for GPU
 
 ## 9. Metrics (test pass rate, coverage, model metrics, perf numbers)
-- (will populate during build)
+- **M2 FINAL (ChEMBL-augmented)**: AUPRC 0.817 · AUROC 0.807 · ECE 0.050 · Recall@10 78.5% · Recall@20 91.7% · Recall@50 98.1% · Recall@100 99.6%
+- **M2 INITIAL (synthetic data)**: AUPRC 0.62 · AUROC 0.77 · ECE 0.074 · Recall@20 37% · KG 367 nodes/309 edges
+- **ChEMBL-augmented dataset**: 1,645 drugs · 1,470 diseases · 14,578 indications · 353 targets · 915 drug-target edges · 2.4M possible pairs
+- **KG after augmentation**: 3,532 nodes · 15,504 edges (14,559 TREATS + 878 HAS_TARGET + 67 HAS_GENE)
+- **RGCN embeddings**: 256-dim, loss 34.2→5.0 over 100 epochs
+- **Recall@20 target**: ≥70% ✅ ACHIEVED (91.7%)
 
 ## 10. Changelog (date-stamped, newest first)
+- 2026-10-08: **Recall Gap CLOSED** — Recall@20 37% → 91.7% (target ≥70% ✅). ChEMBL augmentation (100× more data) + SimpleIndicationModel_MLP (Morgan fingerprints + KG embeddings)
+- 2026-10-08: M2 COMPLETE — AUPRC 0.817, AUROC 0.807, ECE 0.050, Recall@20 91.7%. Model saved to prototype/models/indication_model.pt
+- 2026-10-08: ChEMBL data augmentation complete — 30K indications, 1.5K molecules, 814 mechanisms, 273 targets fetched and merged with synthetic Orphanet data
+- 2026-10-08: Unified KG schema with dual-format IDs (chembl: + drugcentral:) for cross-source compatibility
+- 2026-10-08: KG rebuilt with augmented data — 3,532 nodes, 15,504 edges
+- 2026-10-08: RGCN embeddings retrained — loss 34.2→5.0 (100 epochs)
+- 2026-10-08: Indication model retrained on expanded dataset (1,645 drugs, 14,578 positives)
 - 2026-10-08: M2 complete (90%) — DualEncoderCrossAttention trained (AUPRC 0.62, AUROC 0.77, ECE 0.074, Recall@20 37%); API wired to live inference; 27 tests passing
 - 2026-10-08: Dataset scaled to 120 drugs / 61 diseases / 138 positives; KG enriched with TREATS edges (367 nodes, 309 edges)
 - 2026-10-08: M1 complete (90%) — API + frontend + KG + demo data; full NPC workflow verified end-to-end incl. 24KB PDF dossier
