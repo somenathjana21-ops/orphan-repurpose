@@ -1769,3 +1769,211 @@ class TestSimpleEndpointCoverage:
         response = await async_client.get("/api/v1/audit/sessions")
         assert response.status_code in [200, 404, 500]
 
+
+
+class TestValidationEndpointsFullCoverage:
+    @pytest.mark.asyncio
+    async def test_validate_candidate_exception_path(self, async_client: AsyncClient):
+        """Test exception handling in validate_candidate (lines 55-57)."""
+        from unittest.mock import patch
+        from app.services.audit_service import get_audit_service
+        
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_data = gen_response.json()
+        if gen_data["candidates"]:
+            candidate_id = gen_data["candidates"][0]["candidate_id"]
+            
+            # Mock audit service to raise exception
+            with patch.object(get_audit_service(), 'add_entry', side_effect=Exception("Audit failed")):
+                response = await async_client.post(
+                    f"/api/v1/validation/candidates/{candidate_id}/validate",
+                    json={"validator": "Dr. Test", "assessment": "plausible", "rationale": "Test"}
+                )
+                assert response.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_self_assess_exception_path(self, async_client: AsyncClient):
+        """Test exception handling in self_assess_candidate (lines 101-103)."""
+        from unittest.mock import patch
+        from app.services.audit_service import get_audit_service
+        
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_data = gen_response.json()
+        if gen_data["candidates"]:
+            candidate_id = gen_data["candidates"][0]["candidate_id"]
+            
+            with patch.object(get_audit_service(), 'add_entry', side_effect=Exception("Audit failed")):
+                response = await async_client.post(
+                    f"/api/v1/validation/candidates/{candidate_id}/assess",
+                    json={"efficacy": 5, "safety": 5, "feasibility": 5, "notes": "Test"}
+                )
+                assert response.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_get_audit_trail_not_found(self, async_client: AsyncClient):
+        """Test audit trail not found (lines 109-119)."""
+        response = await async_client.get("/api/v1/validation/nonexistent_session_xyz")
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_get_audit_trail_exception(self, async_client: AsyncClient):
+        """Test exception in get_audit_trail (lines 115-119)."""
+        from unittest.mock import patch
+        from app.services.audit_service import get_audit_service
+        
+        # Create a valid session first
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_data = gen_response.json()
+        if gen_data["candidates"]:
+            candidate_id = gen_data["candidates"][0]["candidate_id"]
+            val_response = await async_client.post(
+                f"/api/v1/validation/candidates/{candidate_id}/validate",
+                json={"validator": "Dr. Test", "assessment": "plausible", "rationale": "Test"}
+            )
+            if val_response.status_code == 200:
+                session_id = val_response.json()["session_id"]
+                
+                with patch.object(get_audit_service(), 'get_trail', side_effect=Exception("DB error")):
+                    response = await async_client.get(f"/api/v1/validation/{session_id}")
+                    assert response.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_verify_audit_trail_not_found(self, async_client: AsyncClient):
+        """Test verify audit trail not found (lines 125-135)."""
+        response = await async_client.get("/api/v1/validation/nonexistent_session_xyz/verify")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_verify_audit_trail_exception(self, async_client: AsyncClient):
+        """Test exception in verify_audit_trail (lines 131-135)."""
+        from unittest.mock import patch
+        from app.services.audit_service import get_audit_service
+        
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_data = gen_response.json()
+        if gen_data["candidates"]:
+            candidate_id = gen_data["candidates"][0]["candidate_id"]
+            val_response = await async_client.post(
+                f"/api/v1/validation/candidates/{candidate_id}/validate",
+                json={"validator": "Dr. Test", "assessment": "plausible", "rationale": "Test"}
+            )
+            if val_response.status_code == 200:
+                session_id = val_response.json()["session_id"]
+                
+                with patch.object(get_audit_service(), 'verify', side_effect=Exception("DB error")):
+                    response = await async_client.get(f"/api/v1/validation/{session_id}/verify")
+                    assert response.status_code == 500
+
+
+
+
+
+    @pytest.mark.asyncio
+    async def test_indication_service_score_drugs_not_ready(self):
+        """Test score_drugs when not loaded (lines 109-110)."""
+        from app.services.indication_service import IndicationService
+        svc = IndicationService(model_path="/nonexistent/path/model.pt")
+        # Don't call load(), _loaded is False
+        results = svc.score_drugs("UMLS:C0028042")
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_indication_service_score_drugs_unknown_disease(self):
+        """Test score_drugs with unknown disease (lines 111-112)."""
+        from app.services.indication_service import IndicationService
+        svc = IndicationService(model_path="/nonexistent/path/model.pt")
+        # Mock _loaded to True but empty disease_map
+        svc._loaded = True
+        svc.disease_map = {}
+        results = svc.score_drugs("UNKNOWN:DISEASE")
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_indication_service_score_drugs_empty_ids(self):
+        """Test score_drugs with empty drug_ids (lines 117-118)."""
+        from app.services.indication_service import IndicationService
+        svc = IndicationService(model_path="/nonexistent/path/model.pt")
+        svc._loaded = True
+        svc.disease_map = {"UMLS:C0028042": 0}
+        svc.disease_embeddings = [[0.0]*256]
+        results = svc.score_drugs("UMLS:C0028042", drug_ids=[])
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_indication_service_score_drugs_unknown_drug(self):
+        """Test score_drugs with unknown drug_id (lines 115-116)."""
+        from app.services.indication_service import IndicationService
+        import torch
+        svc = IndicationService(model_path="/nonexistent/path/model.pt")
+        svc._loaded = True
+        svc.disease_map = {"UMLS:C0028042": 0}
+        svc.disease_embeddings = [[0.0]*256]
+        svc.drug_smiles = {"drugcentral:1001": "CCO"}
+        svc.config = {"architecture": "SimpleIndicationModel_MLP"}
+        # drug_fingerprints missing the drug
+        svc.drug_fingerprints = {}
+        results = svc.score_drugs("UMLS:C0028042", drug_ids=["drugcentral:999"])
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_indication_service_score_all_for_orpha_unknown(self):
+        """Test score_all_for_orpha with unknown ORPHA (lines 156-159)."""
+        from app.services.indication_service import IndicationService
+        svc = IndicationService(model_path="/nonexistent/path/model.pt")
+        svc._loaded = True
+        svc.disease_map = {}
+        results = svc.score_all_for_orpha("ORPHA:999999")
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_indication_service_is_ready(self):
+        """Test is_ready method (line 162)."""
+        from app.services.indication_service import IndicationService
+        svc = IndicationService(model_path="/nonexistent/path/model.pt")
+        assert svc.is_ready() is False
+        
+        svc._loaded = True
+        assert svc.is_ready() is True
+
+    @pytest.mark.asyncio
+    async def test_indication_service_get_indication_service_singleton(self):
+        """Test singleton getter."""
+        from app.services.indication_service import get_indication_service, IndicationService
+        svc1 = get_indication_service()
+        svc2 = get_indication_service()
+        assert svc1 is svc2
+
+
+class TestDossierEndpointsFullCoverage:
+    @pytest.mark.asyncio
+    async def test_dossier_generate_exception(self, async_client: AsyncClient):
+        """Test exception in dossier generate."""
+        from unittest.mock import patch
+        from app.services.dossier_service import get_dossier_service
+        
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_data = gen_response.json()
+        if gen_data["candidates"]:
+            candidate_ids = [gen_data["candidates"][0]["candidate_id"]]
+            
+            with patch.object(get_dossier_service(), 'generate_dossier', side_effect=Exception("Template error")):
+                response = await async_client.post("/api/v1/dossier/generate", json={
+                    "disease_id": "ORPHA:635",
+                    "candidate_ids": candidate_ids,
+                    "include_sections": ["background"]
+                })
+                assert response.status_code == 500
+
+
+class TestAuditEndpointFullCoverage:
+    @pytest.mark.asyncio
+    async def test_audit_trail_not_found(self, async_client: AsyncClient):
+        response = await async_client.get("/api/v1/audit/nonexistent_session_xyz")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_audit_verify_not_found(self, async_client: AsyncClient):
+        response = await async_client.get("/api/v1/audit/nonexistent_session_xyz/verify")
+        assert response.status_code == 404
+
