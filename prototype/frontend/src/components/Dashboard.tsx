@@ -6,7 +6,6 @@ import {
   ChevronUp,
   AlertCircle,
   Info,
-  Sparkles,
   Dna,
   ShieldCheck,
   Network,
@@ -18,12 +17,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { diseasesApi } from '../services/api'
 import type { DiseaseSearchResult } from '../types'
-
-const BENCHMARKS = [
-  { name: 'Niemann-Pick Type C', orphaId: 'ORPHA:635', gene: 'NPC1', need: 0.85, tag: 'Benchmark' },
-  { name: 'Cystic Fibrosis', orphaId: 'ORPHA:793', gene: 'CFTR', need: 0.60, tag: 'Targeted' },
-  { name: 'Huntington Disease', orphaId: 'ORPHA:98065', gene: 'HTT', need: 0.75, tag: 'Neuro' },
-]
+import { GlassHero } from './GlassHero'
 
 export function Dashboard() {
   const [query, setQuery] = useState('')
@@ -65,11 +59,6 @@ export function Dashboard() {
     }
   }
 
-  const handleBenchmarkClick = (b: typeof BENCHMARKS[0]) => {
-    setQuery(b.orphaId)
-    setPage(1)
-  }
-
   const clearAllFilters = () => {
     setQuery('')
     setPrevalenceMax('')
@@ -83,9 +72,9 @@ export function Dashboard() {
   const SortIcon = ({ field }: { field: string }) => {
     if (sortBy !== field) return <ChevronDown className="h-3.5 w-3.5 text-slate-400 inline ml-1 opacity-40" />
     return sortOrder === 'asc' ? (
-      <ChevronUp className="h-3.5 w-3.5 text-indigo-600 inline ml-1" />
+      <ChevronUp className="h-3.5 w-3.5 text-blue-600 inline ml-1" />
     ) : (
-      <ChevronDown className="h-3.5 w-3.5 text-indigo-600 inline ml-1" />
+      <ChevronDown className="h-3.5 w-3.5 text-blue-600 inline ml-1" />
     )
   }
 
@@ -100,7 +89,7 @@ export function Dashboard() {
           <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto">
             Unable to connect to the OrphanRepurpose API backend on <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">http://localhost:8000</code>.
           </p>
-          <button onClick={() => refetch()} className="btn-primary">
+          <button onClick={() => refetch()} className="btn-cobalt">
             Retry Connection
           </button>
         </div>
@@ -109,106 +98,75 @@ export function Dashboard() {
   }
 
   return (
-    <div className="space-y-7">
-      {/* Hero Platform Overview */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white p-7 sm:p-9 shadow-xl border border-indigo-900/50">
-        <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-12 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="space-y-8">
+      {/* Signature Asklepios 3D Glass Hero Banner */}
+      <GlassHero
+        onSelectBenchmark={(orphaId) => {
+          setQuery(orphaId)
+          setPage(1)
+        }}
+      />
 
-        <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-200 text-xs font-semibold backdrop-blur-md border border-indigo-400/20">
-            <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
-            <span>AI Rare Disease Therapeutics Engine</span>
+      {/* Modern Platform Metrics Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        <div className="glass-card p-5 sm:p-6 card-hover">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Diseases</span>
+            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200/50">
+              <Dna className="h-4.5 w-4.5" />
+            </div>
           </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">4,357</div>
+          <div className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
+            <span className="text-blue-600 font-semibold">Orphanet</span> curated rare cohort
+          </div>
+        </div>
 
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
-            Discover Repurposed Drugs for{' '}
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-sky-300 to-emerald-300">
-              Rare & Orphan Diseases
-            </span>
-          </h1>
+        <div className="glass-card p-5 sm:p-6 card-hover">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Approved Drugs</span>
+            <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center border border-sky-200/50">
+              <Network className="h-4.5 w-4.5" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">1,645</div>
+          <div className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
+            <span className="text-sky-600 font-semibold">DrugCentral</span> bioactive molecules
+          </div>
+        </div>
 
-          <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-            Query across <strong className="text-white">4,357 orphan conditions</strong>, explore graph neural network (GNN) embeddings, calibrated efficacy probabilities, and safety profiles from FAERS post-market data.
-          </p>
+        <div className="glass-card p-5 sm:p-6 card-hover">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Prediction Engine</span>
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-200/50">
+              <TrendingUp className="h-4.5 w-4.5" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">DualEncoder</div>
+          <div className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
+            <span className="text-indigo-600 font-semibold">GNN + Cross-Attention</span> calibrated
+          </div>
+        </div>
 
-          {/* Quick Demo Shortcuts */}
-          <div className="pt-2 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-indigo-200/70 font-medium mr-1">Quick Benchmarks:</span>
-            {BENCHMARKS.map((b) => (
-              <button
-                key={b.orphaId}
-                onClick={() => handleBenchmarkClick(b)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all border border-white/10 active:scale-95"
-              >
-                <span>{b.name}</span>
-                <span className="text-[10px] text-indigo-300 font-mono">({b.orphaId})</span>
-              </button>
-            ))}
+        <div className="glass-card p-5 sm:p-6 card-hover">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Safety Engine</span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200/50">
+              <ShieldCheck className="h-4.5 w-4.5" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">FAERS + ADMET</div>
+          <div className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
+            <span className="text-emerald-600 font-semibold">Disproportionality</span> + RDKit
           </div>
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card p-5 hover:border-slate-300 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Diseases</span>
-            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
-              <Dna className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-slate-900 tracking-tight">4,357</div>
-          <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-            <span className="text-emerald-600 font-medium">Orphanet</span> curated rare cohort
-          </div>
-        </div>
-
-        <div className="card p-5 hover:border-slate-300 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Approved Drugs</span>
-            <div className="p-2 rounded-xl bg-sky-50 text-sky-600">
-              <Network className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-slate-900 tracking-tight">1,645</div>
-          <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-            <span className="text-emerald-600 font-medium">DrugCentral</span> bioactive molecules
-          </div>
-        </div>
-
-        <div className="card p-5 hover:border-slate-300 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Prediction Engine</span>
-            <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
-              <TrendingUp className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-slate-900 tracking-tight">DualEncoder</div>
-          <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-            <span className="text-purple-600 font-medium">GNN + Cross-Attention</span> calibrated
-          </div>
-        </div>
-
-        <div className="card p-5 hover:border-slate-300 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Safety Engine</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-              <ShieldCheck className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-slate-900 tracking-tight">FAERS + ADMET</div>
-          <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-            <span className="text-emerald-600 font-medium">Disproportionality</span> + RDKit
-          </div>
-        </div>
-      </div>
-
-      {/* Search & Filtering Card */}
-      <div className="card p-5 shadow-xs space-y-4">
+      {/* Modern Search & Filtering Bar */}
+      <div className="glass-card p-5 sm:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
           <div className="flex-1 relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
             <input
               type="search"
               placeholder="Search 4,357 rare diseases by disease name, ORPHA code (e.g. ORPHA:635), gene (e.g. NPC1)..."
@@ -217,12 +175,12 @@ export function Dashboard() {
                 setQuery(e.target.value)
                 setPage(1)
               }}
-              className="input pl-10.5 pr-9"
+              className="input pl-11 pr-10 py-3 rounded-2xl bg-white border-slate-200/80 focus:border-blue-500 text-sm placeholder:text-slate-400"
             />
             {query && (
               <button
                 onClick={() => setQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
                 aria-label="Clear search"
               >
                 <X className="h-4 w-4" />
@@ -233,16 +191,16 @@ export function Dashboard() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`btn-secondary flex items-center gap-2 ${
-                showFilters || hasActiveFilters ? 'border-indigo-300 bg-indigo-50/50 text-indigo-700' : ''
+              className={`btn-secondary py-3 px-4 rounded-2xl flex items-center gap-2 transition-all ${
+                showFilters || hasActiveFilters ? 'border-blue-300 bg-blue-50/50 text-blue-700' : ''
               }`}
             >
               <SlidersHorizontal className="h-4 w-4 text-slate-500" />
-              <span>Advanced Filters</span>
+              <span className="font-semibold text-xs">Advanced Filters</span>
               {hasActiveFilters && (
-                <span className="h-2 w-2 rounded-full bg-indigo-600" />
+                <span className="h-2 w-2 rounded-full bg-blue-600" />
               )}
-              {showFilters ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
+              {showFilters ? <ChevronUp className="h-4 w-4 ml-0.5" /> : <ChevronDown className="h-4 w-4 ml-0.5" />}
             </button>
           </div>
         </div>
@@ -304,21 +262,21 @@ export function Dashboard() {
         )}
       </div>
 
-      {/* Disease Results Section */}
-      <div className="card overflow-hidden">
-        {/* Table header bar */}
-        <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-slate-900">Rare Diseases</h2>
-            <span className="badge-gray font-mono">{total.toLocaleString()} results</span>
+      {/* Modern Disease Directory Card */}
+      <div className="glass-card overflow-hidden">
+        {/* Table Header Bar */}
+        <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/70">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Rare Diseases Directory</h2>
+            <span className="badge-gray font-mono text-xs">{total.toLocaleString()} results</span>
           </div>
 
           <div className="flex items-center gap-3 text-xs text-slate-500">
-            <span>Sort By:</span>
+            <span className="font-medium text-slate-400">Sort By:</span>
             <button
               onClick={() => handleSort('unmet_need_score')}
               className={`font-semibold cursor-pointer transition-colors ${
-                sortBy === 'unmet_need_score' ? 'text-indigo-600' : 'hover:text-slate-700'
+                sortBy === 'unmet_need_score' ? 'text-blue-600' : 'hover:text-slate-800'
               }`}
             >
               Unmet Need <SortIcon field="unmet_need_score" />
@@ -327,7 +285,7 @@ export function Dashboard() {
             <button
               onClick={() => handleSort('name')}
               className={`font-semibold cursor-pointer transition-colors ${
-                sortBy === 'name' ? 'text-indigo-600' : 'hover:text-slate-700'
+                sortBy === 'name' ? 'text-blue-600' : 'hover:text-slate-800'
               }`}
             >
               Name <SortIcon field="name" />
@@ -336,7 +294,7 @@ export function Dashboard() {
             <button
               onClick={() => handleSort('prevalence')}
               className={`font-semibold cursor-pointer transition-colors ${
-                sortBy === 'prevalence' ? 'text-indigo-600' : 'hover:text-slate-700'
+                sortBy === 'prevalence' ? 'text-blue-600' : 'hover:text-slate-800'
               }`}
             >
               Prevalence <SortIcon field="prevalence" />
@@ -344,19 +302,19 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Loading Bar */}
-        {isLoading && <div className="h-1 bg-indigo-600 animate-pulse" />}
+        {/* Loading Progress */}
+        {isLoading && <div className="h-1 bg-blue-600 animate-pulse" />}
 
         {/* Disease Items Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50/70">
-                <th className="px-6 py-3.5">Disease & Identification</th>
-                <th className="px-6 py-3.5">Prevalence / Rarity</th>
-                <th className="px-6 py-3.5">Unmet Medical Need</th>
-                <th className="px-6 py-3.5">Genetic Etiology</th>
-                <th className="px-6 py-3.5 text-right">Repurposing Action</th>
+              <tr className="border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50/50">
+                <th className="px-6 sm:px-8 py-4">Disease & Identification</th>
+                <th className="px-6 py-4">Prevalence / Rarity</th>
+                <th className="px-6 py-4">Unmet Medical Need</th>
+                <th className="px-6 py-4">Genetic Etiology</th>
+                <th className="px-6 sm:px-8 py-4 text-right">Repurposing Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -381,16 +339,16 @@ export function Dashboard() {
                 diseases.map((d: DiseaseSearchResult) => {
                   const needScore = d.unmet_need_score ?? 0
                   return (
-                    <tr key={d.orpha_id} className="hover:bg-slate-50/80 transition-colors group">
-                      <td className="px-6 py-4">
+                    <tr key={d.orpha_id} className="hover:bg-blue-50/30 transition-colors group">
+                      <td className="px-6 sm:px-8 py-4.5">
                         <Link
                           to={`/diseases/${d.orpha_id}`}
-                          className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors block text-base leading-tight mb-1"
+                          className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors block text-base leading-tight mb-1"
                         >
                           {d.name}
                         </Link>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">
+                          <span className="font-mono text-xs px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-semibold">
                             {d.orpha_id}
                           </span>
                           {d.inheritance && d.inheritance.length > 0 && (
@@ -401,7 +359,7 @@ export function Dashboard() {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4.5">
                         <div className="space-y-1">
                           <div className="text-xs font-semibold text-slate-700">
                             {d.prevalence !== null && d.prevalence !== undefined
@@ -416,7 +374,7 @@ export function Dashboard() {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4.5">
                         <div className="space-y-1.5 w-40">
                           <div className="flex items-center justify-between text-xs font-semibold">
                             <span
@@ -425,7 +383,7 @@ export function Dashboard() {
                                   ? 'text-rose-600'
                                   : needScore >= 0.65
                                   ? 'text-amber-600'
-                                  : 'text-indigo-600'
+                                  : 'text-blue-600'
                               }
                             >
                               {needScore >= 0.8 ? 'High Priority' : needScore >= 0.65 ? 'Elevated' : 'Moderate'}
@@ -440,8 +398,8 @@ export function Dashboard() {
                                 needScore >= 0.8
                                   ? 'bg-gradient-to-r from-amber-500 to-rose-500'
                                   : needScore >= 0.65
-                                  ? 'bg-gradient-to-r from-indigo-500 to-amber-500'
-                                  : 'bg-gradient-to-r from-emerald-500 to-indigo-500'
+                                  ? 'bg-gradient-to-r from-blue-500 to-amber-500'
+                                  : 'bg-gradient-to-r from-emerald-500 to-blue-500'
                               }`}
                               style={{ width: `${Math.min(needScore * 100, 100)}%` }}
                             />
@@ -449,7 +407,7 @@ export function Dashboard() {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4.5">
                         {d.genes && d.genes.length > 0 ? (
                           <div className="flex flex-wrap gap-1 max-w-xs">
                             {d.genes.slice(0, 3).map((g) => (
@@ -469,10 +427,10 @@ export function Dashboard() {
                         )}
                       </td>
 
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 sm:px-8 py-4.5 text-right">
                         <Link
                           to={`/diseases/${d.orpha_id}/candidates`}
-                          className="btn-primary text-xs py-2 px-3.5 inline-flex items-center gap-1.5 font-semibold group-hover:scale-102 transition-all"
+                          className="btn-cobalt text-xs py-2 px-3.5 inline-flex items-center gap-1.5 font-semibold group-hover:shadow-md transition-all rounded-xl"
                         >
                           <span>Repurpose</span>
                           <ArrowRight className="h-3.5 w-3.5" />
@@ -488,7 +446,7 @@ export function Dashboard() {
 
         {/* Modern Pagination Footer */}
         {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50">
+          <div className="px-6 sm:px-8 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white/70">
             <span className="text-xs text-slate-500">
               Showing page <strong className="text-slate-800">{page}</strong> of{' '}
               <strong className="text-slate-800">{totalPages.toLocaleString()}</strong> ({total.toLocaleString()} total diseases)
@@ -498,7 +456,7 @@ export function Dashboard() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="btn-secondary text-xs px-3 py-1.5"
+                className="btn-secondary text-xs px-3.5 py-1.5 rounded-xl"
               >
                 Previous
               </button>
@@ -510,10 +468,10 @@ export function Dashboard() {
                     <button
                       key={pNum}
                       onClick={() => setPage(pNum)}
-                      className={`h-8 w-8 rounded-lg text-xs font-semibold transition-all ${
+                      className={`h-8 w-8 rounded-xl text-xs font-semibold transition-all ${
                         pNum === page
-                          ? 'bg-indigo-600 text-white shadow-xs'
-                          : 'text-slate-600 hover:bg-slate-200/60'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:bg-slate-100'
                       }`}
                     >
                       {pNum}
@@ -524,7 +482,7 @@ export function Dashboard() {
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="btn-secondary text-xs px-3 py-1.5"
+                className="btn-secondary text-xs px-3.5 py-1.5 rounded-xl"
               >
                 Next
               </button>
