@@ -11,24 +11,22 @@ import { Layout } from './components/Layout'
 
 function App() {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-slate-100/90 text-slate-900 font-sans selection:bg-blue-600 selection:text-white p-2 sm:p-4 lg:p-6">
       <DisclaimerBanner />
-      <div className="flex-1 flex overflow-hidden">
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/diseases" element={<Navigate to="/" replace />} />
-            <Route path="/diseases/:orphaId" element={<DiseaseDetail />} />
-            <Route path="/diseases/:orphaId/candidates" element={<CandidateList />} />
-            <Route path="/candidates" element={<Navigate to="/diseases/ORPHA:635/candidates" replace />} />
-            <Route path="/candidates/:candidateId" element={<CandidateDetail />} />
-            <Route path="/dossier" element={<DossierBuilder />} />
-            <Route path="/case-studies" element={<CaseStudies />} />
-            <Route path="/kg" element={<KGBrowser />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Layout>
-      </div>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/diseases" element={<Navigate to="/" replace />} />
+          <Route path="/diseases/:orphaId" element={<DiseaseDetail />} />
+          <Route path="/diseases/:orphaId/candidates" element={<CandidateList />} />
+          <Route path="/candidates" element={<Navigate to="/diseases/ORPHA:635/candidates" replace />} />
+          <Route path="/candidates/:candidateId" element={<CandidateDetail />} />
+          <Route path="/dossier" element={<DossierBuilder />} />
+          <Route path="/case-studies" element={<CaseStudies />} />
+          <Route path="/kg" element={<KGBrowser />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Layout>
     </div>
   )
 }
