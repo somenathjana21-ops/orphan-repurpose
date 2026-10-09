@@ -12,6 +12,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "sqlalchemy>=2.0.0",
     "aiosqlite>=0.19.0",
+    "greenlet>=3.0.0",
     "kuzu>=0.7.0",
     "chromadb>=0.5.0",
     "networkx>=3.3",
@@ -62,6 +63,7 @@ format.quote-style = "double"
 
 [tool.mypy]
 python_version = "3.11"
+explicit_package_bases = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false

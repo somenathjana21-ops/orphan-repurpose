@@ -22,7 +22,10 @@ class KGService:
         """Initialize Kuzu database connection."""
         self.db_path.mkdir(parents=True, exist_ok=True)
         self.db_file = self.db_path / "kuzu.db"
-        self.db = kuzu.Database(str(self.db_file))
+        try:
+            self.db = kuzu.Database(str(self.db_file), read_only=True)
+        except Exception:
+            self.db = kuzu.Database(str(self.db_file))
         self.conn = kuzu.Connection(self.db)
         logger.info("kuzu_initialized", path=str(self.db_file))
     

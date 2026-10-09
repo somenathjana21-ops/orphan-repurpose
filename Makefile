@@ -39,6 +39,15 @@ MODELS_DIR := ./prototype/models
 BACKEND_DIR := ./prototype/backend
 FRONTEND_DIR := ./prototype/frontend
 
+# Python environment resolution (supports local venv or system python)
+ifeq ($(OS),Windows_NT)
+    VENV_PY := $(wildcard .venv/Scripts/python.exe)
+    PYTHON ?= $(if $(VENV_PY),$(abspath $(VENV_PY)),python)
+else
+    VENV_PY := $(wildcard .venv/bin/python)
+    PYTHON ?= $(if $(VENV_PY),$(abspath $(VENV_PY)),python3)
+endif
+
 # =============================================================================
 # DATA DOWNLOAD
 # =============================================================================
@@ -227,16 +236,16 @@ demo-dossier:
 # =============================================================================
 test:
 	@echo "🧪 Running tests..."
-	cd $(BACKEND_DIR) && python -m pytest tests/ -v --cov=app --cov=ml --cov-fail-under=80
+	cd $(BACKEND_DIR) && $(PYTHON) -m pytest tests/ -v --cov=app --cov-fail-under=80
 
 test-unit:
-	cd $(BACKEND_DIR) && python -m pytest tests/unit -v
+	cd $(BACKEND_DIR) && $(PYTHON) -m pytest tests/ -m "not integration" -v
 
 test-integration:
-	cd $(BACKEND_DIR) && python -m pytest tests/integration -v
+	cd $(BACKEND_DIR) && $(PYTHON) -m pytest tests/ -m "integration" -v
 
 test-e2e:
-	cd $(BACKEND_DIR) && python -m pytest tests/e2e -v
+	cd $(BACKEND_DIR) && $(PYTHON) -m pytest tests/ -v
 
 # =============================================================================
 # LINTING
@@ -245,7 +254,7 @@ lint: lint-backend lint-frontend
 
 lint-backend:
 	@echo "🔍 Linting backend..."
-	cd $(BACKEND_DIR) && ruff check . && mypy app/
+	cd $(BACKEND_DIR) && $(PYTHON) -m ruff check app/ && $(PYTHON) -m mypy --explicit-package-bases app/
 
 lint-frontend:
 	@echo "🔍 Linting frontend..."
@@ -273,13 +282,13 @@ clean:
 # DEVELOPMENT HELPERS
 # =============================================================================
 dev-backend:
-	cd $(BACKEND_DIR) && uvicorn app.main:app --reload --port 8000
+	cd $(BACKEND_DIR) && $(PYTHON) -m uvicorn app.main:app --reload --port 8000
 
 dev-frontend:
 	cd $(FRONTEND_DIR) && npm run dev
 
 install-backend:
-	cd $(BACKEND_DIR) && pip install -e ".[dev]"
+	cd $(BACKEND_DIR) && $(PYTHON) -m pip install -e ".[dev]"
 
 install-frontend:
 	cd $(FRONTEND_DIR) && npm install

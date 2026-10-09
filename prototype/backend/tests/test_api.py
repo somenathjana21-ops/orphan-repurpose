@@ -1705,16 +1705,23 @@ class TestMissingLinesInMain:
     async def test_main_app_root(self, async_client: AsyncClient):
         """Test root endpoint to cover main.py lines."""
         response = await async_client.get("/")
-        # The root endpoint might not exist, but we can try
-        # Actually, let's test the health endpoint if it exists
+        assert response.status_code == 200
+        assert "OrphanRepurpose API" in response.text
         response = await async_client.get("/health")
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_main_app_docs(self, async_client: AsyncClient):
         """Test docs endpoint."""
         response = await async_client.get("/docs")
         assert response.status_code == 200  # FastAPI docs should be available
+
+    @pytest.mark.asyncio
+    async def test_main_app_lifespan(self):
+        """Test lifespan in main.py."""
+        from app.main import lifespan, app
+        async with lifespan(app):
+            pass
 
 
 

@@ -1,0 +1,12 @@
+{
+  "name": "orphan-repurpose",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-Driven Drug Repurposing for Rare & Orphan Diseases",
+  "scripts": {
+    "dev": "npm --prefix prototype/frontend run dev",
+    "build": "npm --prefix prototype/frontend run build",
+    "lint": "npm --prefix prototype/frontend run lint",
+    "preview": "npm --prefix prototype/frontend run preview"
+  }
+}
