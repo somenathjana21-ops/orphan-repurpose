@@ -56,7 +56,8 @@ def download_orpha_data(data_dir: Path):
             logger.info("downloaded", name=name, path=str(dest_path))
         except Exception as e:
             logger.error("download_failed", name=name, error=str(e))
-            raise
+            # Continue with other files
+            continue
 
 if __name__ == "__main__":
     import sys
