@@ -35,7 +35,7 @@ OrphanRepurpose addresses the critical unmet need in rare disease therapeutics b
 
 ## Current Status & Metrics
 
-### Phase 5 - Build (M2: Indication Model) - 90% Complete
+### Phase 5 - Build (Post-Audit Fix — All critical failures resolved) - 100% Complete
 
 **Model Performance (ChEMBL-augmented dataset):**
 - AUPRC: 0.817
