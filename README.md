@@ -266,6 +266,8 @@ Progress is tracked in `Brain.md`. Key milestones:
 ## Open-Source & Contribution
 We welcome contributions from developers, researchers, clinicians, and advocates. Whether you’re fixing bugs, adding features, or improving documentation, your help advances rare disease therapeutics.
 
+**Quick links:** [Contributing Guide](CONTRIBUTING.md) • [Code of Conduct](CODE_OF_CONDUCT.md)
+
 ### How to Contribute
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-idea`)
