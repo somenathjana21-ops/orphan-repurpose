@@ -196,10 +196,10 @@ def load_diseases(conn: kuzu.Connection, processed_dir: Path):
                 "name": row["name"],
                 "prevalence": float(row.get("prevalence")) if pd.notna(row.get("prevalence")) else None,
                 "prevalence_category": row.get("prevalence_category") if pd.notna(row.get("prevalence_category")) else None,
-                "inheritance": list(row.get("inheritance", [])),
-                "age_of_onset": list(row.get("age_of_onset", [])),
-                "phenotypes": list(row.get("phenotypes", [])),
-                "existing_treatments": list(row.get("existing_treatments", [])),
+                "inheritance": ([row["inheritance"].split("|")] if row.get("inheritance") is not None else []),
+                "age_of_onset": ([row["age_of_onset"].split("|")] if row.get("age_of_onset") is not None else []),
+                "phenotypes": ([row["phenotypes"].split("|")] if row.get("phenotypes") is not None else []),
+                "existing_treatments": ([row["existing_treatments"].split("|")] if row.get("existing_treatments") is not None else []),
                 "unmet_need_score": float(row.get("unmet_need_score")) if pd.notna(row.get("unmet_need_score")) else None,
             })
     
