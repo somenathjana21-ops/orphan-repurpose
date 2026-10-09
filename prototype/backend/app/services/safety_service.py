@@ -11,6 +11,7 @@ from pathlib import Path
 
 from app.ml.faers import FAERSAnalyzer, DisproportionalityResult, ContingencyTable
 from app.ml.admet import ADMETPredictor, ADMET_ENDPOINTS
+from app.services.faers_service import FaersService
 
 logger = structlog.get_logger()
 
@@ -21,10 +22,11 @@ class SafetyService:
     def __init__(self):
         self.faers_analyzer = FAERSAnalyzer()
         self.admet_predictor = ADMETPredictor()
+        self._faers_service = FaersService()
         self._faers_cache: Dict[str, List[DisproportionalityResult]] = {}
         self._admet_cache: Dict[str, Dict[str, float]] = {}
 
-    def assess_drug(
+    async def assess_drug(
         self,
         drug_id: str,
         drug_name: str,
@@ -35,7 +37,12 @@ class SafetyService:
         # FAERS signals
         faers_signals = []
         if faers_reports:
-            faers_signals = self._analyze_faers(drug_id, drug_name, faers_reports)
+            faers_signals = self._analyze_faers(drug_id, drug_name, reports=faers_reports)
+        else:
+            # Fetch real FAERS data from the service
+            tables = await self._faers_service.get_faers_data(drug_name)
+            if tables:
+                faers_signals = self._analyze_faers(drug_id, drug_name, tables=tables)
 
         # ADMET predictions
         admet_predictions = self._predict_admet(drug_id, smiles)
@@ -77,29 +84,39 @@ class SafetyService:
         self,
         drug_id: str,
         drug_name: str,
-        reports: List[Dict[str, Any]],
+        reports: Optional[List[Dict[str, Any]]] = None,
+        tables: Optional[Dict[str, ContingencyTable]] = None,
     ) -> List[DisproportionalityResult]:
         """Analyze FAERS reports for a drug."""
         from app.ml.faers import merge_faers_reports
 
-        tables = merge_faers_reports(reports)
         results = []
 
-        for (did, event), table in tables.items():
-            if did != drug_id:
-                continue
-            if table.a < self.faers_analyzer.min_reports:
-                continue
+        if tables is not None:
+            # Direct contingency tables from FaersService
+            for event, table in tables.items():
+                if table.a < self.faers_analyzer.min_reports:
+                    continue
+                meddra_pt = event
+                result = self.faers_analyzer.analyze(drug_id, drug_name, event, meddra_pt, table)
+                results.append(result)
+        elif reports:
+            tables = merge_faers_reports(reports)
+            for (did, event), table in tables.items():
+                if did != drug_id:
+                    continue
+                if table.a < self.faers_analyzer.min_reports:
+                    continue
 
-            # Get meddra_pt from reports
-            meddra_pt = event
-            for r in reports:
-                if r.get("drug_id") == drug_id and r.get("event") == event:
-                    meddra_pt = r.get("meddra_pt", event)
-                    break
+                # Get meddra_pt from reports
+                meddra_pt = event
+                for r in reports:
+                    if r.get("drug_id") == drug_id and r.get("event") == event:
+                        meddra_pt = r.get("meddra_pt", event)
+                        break
 
-            result = self.faers_analyzer.analyze(drug_id, drug_name, event, meddra_pt, table)
-            results.append(result)
+                result = self.faers_analyzer.analyze(drug_id, drug_name, event, meddra_pt, table)
+                results.append(result)
 
         # Sort by severity
         results.sort(key=lambda r: (r.level != "fail", r.level != "caution", -r.ror))
@@ -166,6 +183,7 @@ class SafetyService:
         """Clear all caches."""
         self._faers_cache.clear()
         self._admet_cache.clear()
+        self._faers_service.clear_cache()
         logger.info("safety_cache_cleared")
 
 

@@ -1,10 +1,11 @@
 import { ReactNode } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { Menu, Home, FlaskConical, FileText } from 'lucide-react'
+import { Menu, Home, FlaskConical, FileText, Network } from 'lucide-react'
 import { useState } from 'react'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
+  { name: 'Knowledge Graph', href: '/kg', icon: Network },
   { name: 'Diseases', href: '/diseases', icon: FlaskConical },
   { name: 'Candidates', href: '/candidates', icon: FlaskConical },
   { name: 'Dossiers', href: '/dossier', icon: FileText },

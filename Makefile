@@ -1,8 +1,8 @@
 # OrphanRepurpose Makefile
 # Usage: make <target>
-# Key targets: setup, run, demo, test, lint, clean
+# Key targets: setup, run, demo, test, lint, clean, verify
 
-.PHONY: help setup data-download data-process kg-build molecular-feats faers-signals admet-predict literature-index model-train run demo test lint clean
+.PHONY: help setup data-download data-process kg-build kg-embeddings molecular-feats faers-signals admet-predict literature-index model-train run demo test lint clean verify install-shap install-tdc
 
 # Default target
 help:
@@ -15,6 +15,7 @@ help:
 	@echo "  make test            - Run all tests"
 	@echo "  make lint            - Run linters (ruff, mypy, eslint)"
 	@echo "  make clean           - Clean build artifacts"
+	@echo "  make verify          - Run tests + check all endpoints"
 	@echo ""
 	@echo "Individual pipeline steps:"
 	@echo "  make data-download   - Download all raw datasets"
@@ -22,9 +23,13 @@ help:
 	@echo "  make kg-build        - Build Kuzu KG + train RGCN embeddings"
 	@echo "  make molecular-feats - Compute molecular fingerprints"
 	@echo "  make faers-signals   - Compute FAERS disproportionality"
-	@echo "  make admet-predict   - Run TDC ADMET models"
+	@echo "  make admet-predict   - Run ADMET predictions (RDKit fallback)"
 	@echo "  make literature-index - Index PubMed abstracts in ChromaDB"
 	@echo "  make model-train     - Train indication prediction model"
+	@echo ""
+	@echo "Installation helpers:"
+	@echo "  make install-shap    - Install SHAP for model explainability"
+	@echo "  make install-tdc     - Install TDC (requires GPU for deep learning)"
 
 # Configuration
 DATA_DIR := ./prototype/data
@@ -49,37 +54,29 @@ download-drugcentral:
 
 download-tdc:
 	@echo "📥 Downloading TDC data..."
+	@echo "  Note: TDC requires GPU for deep learning models."
+	@echo "  Install with: pip install tdc"
 	cd $(BACKEND_DIR) && python ../scripts/download/download_tdc.py $(DATA_DIR)
 
 download-faers:
-	@echo "📥 Downloading FAERS data (placeholder)..."
-	@mkdir -p $(RAW_DIR)/faers
-	@touch $(RAW_DIR)/faers/faers_2024q1.json.zip
-	@touch $(RAW_DIR)/faers/faers_2024q2.json.zip
-	@touch $(RAW_DIR)/faers/faers_2024q3.json.zip
-	@touch $(RAW_DIR)/faers/faers_2024q4.json.zip
-	@touch $(RAW_DIR)/faers/faers_2025q1.json.zip
-	@touch $(RAW_DIR)/faers/faers_2025q2.json.zip
+	@echo "📥 Downloading FAERS data via openFDA API..."
+	cd $(BACKEND_DIR) && python ../scripts/download/download_faers.py $(DATA_DIR)
 
 download-chembl:
-	@echo "📥 Downloading ChEMBL data (placeholder)..."
-	@mkdir -p $(RAW_DIR)/chembl
-	@touch $(RAW_DIR)/chembl/chembl_33.sql.gz
+	@echo "📥 Copying ChEMBL data from /root/..."
+	cd $(BACKEND_DIR) && python ../scripts/download/download_chembl.py $(DATA_DIR)
 
 download-reactome:
-	@echo "📥 Downloading Reactome data (placeholder)..."
-	@mkdir -p $(RAW_DIR)/reactome
-	@touch $(RAW_DIR)/reactome/reactome_pathways.txt
+	@echo "📥 Creating curated Reactome pathway data..."
+	cd $(BACKEND_DIR) && python ../scripts/download/download_reactome.py $(DATA_DIR)
 
 download-pubmed:
-	@echo "📥 Downloading PubMed data (placeholder)..."
-	@mkdir -p $(RAW_DIR)/pubmed
-	@touch $(RAW_DIR)/pubmed/pubmed_npc.jsonl
+	@echo "📥 Creating curated PubMed publication data..."
+	cd $(BACKEND_DIR) && python ../scripts/download/download_pubmed.py $(DATA_DIR)
 
 download-uniprot:
-	@echo "📥 Downloading UniProt data (placeholder)..."
-	@mkdir -p $(RAW_DIR)/uniprot
-	@touch $(RAW_DIR)/uniprot/uniprot_reviewed.xml.gz
+	@echo "📥 Creating curated UniProt mapping data..."
+	cd $(BACKEND_DIR) && python ../scripts/download/download_uniprot.py $(DATA_DIR)
 
 # =============================================================================
 # DATA PROCESSING
@@ -96,28 +93,24 @@ process-drugcentral:
 
 process-tdc:
 	@echo "⚙️  Processing TDC data..."
-	@mkdir -p $(PROCESSED_DIR)/tdc
-	# TODO: Implement TDC dataset processing
+	@echo "  Note: TDC requires GPU for deep learning models."
+	python ./prototype/scripts/etl/process_tdc.py $(RAW_DIR)/tdc $(PROCESSED_DIR)/tdc
 
 process-faers:
 	@echo "⚙️  Processing FAERS data..."
-	@mkdir -p $(PROCESSED_DIR)/faers
-	# TODO: Implement FAERS disproportionality calculation
+	python ./prototype/scripts/etl/process_faers.py $(RAW_DIR)/faers $(PROCESSED_DIR)/faers
 
 process-chembl:
 	@echo "⚙️  Processing ChEMBL data..."
-	@mkdir -p $(PROCESSED_DIR)/chembl
-	# TODO: Implement ChEMBL processing
+	python ./prototype/scripts/etl/merge_chembl_data.py
 
 process-reactome:
 	@echo "⚙️  Processing Reactome data..."
-	@mkdir -p $(PROCESSED_DIR)/reactome
-	# TODO: Implement Reactome processing
+	python ./prototype/scripts/etl/process_reactome.py $(RAW_DIR)/reactome $(PROCESSED_DIR)/reactome
 
 process-pubmed:
 	@echo "⚙️  Processing PubMed data..."
-	@mkdir -p $(PROCESSED_DIR)/pubmed
-	# TODO: Implement PubMed processing
+	python ./prototype/scripts/etl/process_pubmed.py $(RAW_DIR)/pubmed $(PROCESSED_DIR)/pubmed
 
 # =============================================================================
 # KG BUILD
@@ -145,27 +138,22 @@ molecular-feats:
 # =============================================================================
 faers-signals:
 	@echo "⚠️  Computing FAERS disproportionality signals..."
-	@mkdir -p $(DATA_DIR)/safety/faers_signals
-	# TODO: Compute ROR, PRR, BCPNN
-	@echo "FAERS signals complete (placeholder)"
+	python ./prototype/scripts/etl/faers_disproportionality.py $(DATA_DIR)
 
 # =============================================================================
 # ADMET PREDICTIONS
 # =============================================================================
 admet-predict:
-	@echo "🧪 Running TDC ADMET predictions..."
-	@mkdir -p $(DATA_DIR)/safety/admet
-	# TODO: Run TDC models on 1,608 drugs
-	@echo "ADMET predictions complete (placeholder)"
+	@echo "🧪 Running ADMET predictions (RDKit fallback)..."
+	@echo "  Note: For production use with GPU, use TDC ADMET models instead."
+	python ./prototype/scripts/etl/admet_predict.py $(DATA_DIR)
 
 # =============================================================================
 # LITERATURE INDEX
 # =============================================================================
 literature-index:
 	@echo "📚 Indexing literature in ChromaDB..."
-	@mkdir -p $(DATA_DIR)/chroma_db
-	# TODO: Embed PubMed abstracts
-	@echo "Literature index complete (placeholder)"
+	python ./prototype/scripts/etl/literature_index.py $(DATA_DIR)
 
 # =============================================================================
 # MODEL TRAINING
@@ -297,3 +285,56 @@ install-frontend:
 	cd $(FRONTEND_DIR) && npm install
 
 install: install-backend install-frontend
+
+# =============================================================================
+# ADDITIONAL INSTALLATION TARGETS
+# =============================================================================
+install-shap:
+	@echo "📦 Installing SHAP for model explainability..."
+	pip install shap
+
+install-tdc:
+	@echo "📦 Installing TDC (Therapeutics Data Commons)..."
+	@echo "  Note: TDC requires GPU for deep learning models."
+	@echo "  For CPU-only usage, TDC data loading still works but model training will be slow."
+	pip install tdc
+
+# =============================================================================
+# VERIFY
+# =============================================================================
+verify: test verify-endpoints
+	@echo "✅ Verification complete!"
+
+verify-endpoints:
+	@echo "🔍 Checking all API endpoints..."
+	@echo ""
+	@echo "Checking backend health..."
+	@curl -s -o /dev/null -w "  GET /health: %{http_code}\n" http://localhost:8000/health || echo "  ⚠️  Backend not running. Start with: make run"
+	@echo ""
+	@echo "Checking API endpoints..."
+	@curl -s -o /dev/null -w "  GET /api/v1/diseases: %{http_code}\n" http://localhost:8000/api/v1/diseases || true
+	@curl -s -o /dev/null -w "  GET /api/v1/diseases/ORPHA:635: %{http_code}\n" http://localhost:8000/api/v1/diseases/ORPHA:635 || true
+	@curl -s -o /dev/null -w "  GET /api/v1/candidates?disease_id=ORPHA:635: %{http_code}\n" "http://localhost:8000/api/v1/candidates?disease_id=ORPHA:635" || true
+	@curl -s -o /dev/null -w "  GET /api/v1/kg/disease/ORPHA:635: %{http_code}\n" http://localhost:8000/api/v1/kg/disease/ORPHA:635 || true
+	@curl -s -o /dev/null -w "  GET /api/v1/literature?disease_id=ORPHA:635: %{http_code}\n" "http://localhost:8000/api/v1/literature?disease_id=ORPHA:635" || true
+	@curl -s -o /dev/null -w "  GET /api/v1/validation: %{http_code}\n" http://localhost:8000/api/v1/validation || true
+	@curl -s -o /dev/null -w "  GET /api/v1/audit: %{http_code}\n" http://localhost:8000/api/v1/audit || true
+	@echo ""
+	@echo "Checking frontend..."
+	@curl -s -o /dev/null -w "  GET /: %{http_code}\n" http://localhost:3000/ || echo "  ⚠️  Frontend not running. Start with: make run"
+	@echo ""
+	@echo "Checking data files..."
+	@test -f $(PROCESSED_DIR)/drugcentral/drugcentral_fda_approved.parquet && echo "  ✓ DrugCentral data present" || echo "  ⚠️  DrugCentral data missing. Run: make data-process"
+	@test -f $(PROCESSED_DIR)/orpha/orpha_diseases.parquet && echo "  ✓ Orphanet data present" || echo "  ⚠️  Orphanet data missing. Run: make data-process"
+	@test -f $(DATA_DIR)/kuzu_db/.kuzu && echo "  ✓ Knowledge Graph present" || echo "  ⚠️  Knowledge Graph missing. Run: make kg-build"
+	@test -f $(MODELS_DIR)/kg_embeddings.pkl && echo "  ✓ KG embeddings present" || echo "  ⚠️  KG embeddings missing. Run: make kg-embeddings"
+	@test -f $(MODELS_DIR)/indication_model.pt && echo "  ✓ Indication model present" || echo "  ⚠️  Indication model missing. Run: make model-train"
+	@echo ""
+	@echo "Checking safety data..."
+	@test -f $(DATA_DIR)/safety/faers_signals/faers_signals.parquet && echo "  ✓ FAERS signals present" || echo "  ⚠️  FAERS signals missing. Run: make faers-signals"
+	@test -f $(DATA_DIR)/safety/admet/admet_predictions.parquet && echo "  ✓ ADMET predictions present" || echo "  ⚠️  ADMET predictions missing. Run: make admet-predict"
+	@echo ""
+	@echo "Checking literature index..."
+	@test -d $(DATA_DIR)/chroma_db && echo "  ✓ ChromaDB index present" || echo "  ⚠️  ChromaDB index missing. Run: make literature-index"
+	@echo ""
+	@echo "Verification complete!"

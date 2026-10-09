@@ -202,61 +202,57 @@ class KGPathExtractor:
 
 
 class SHAPExplainer:
-    """Computes SHAP values for Morgan fingerprint bits."""
+    """Computes SHAP values for Morgan fingerprint bits using DeepExplainer-style
+    pre-computed background gradients for fast inference.
+
+    Instead of KernelExplainer (O(n_bits × n_background) per candidate),
+    we pre-compute the gradient of the output w.r.t. the input at a single
+    background point (all-zeros fingerprint), then use the approximation:
+        shap_i ≈ grad_bg_i × (fp_i - bg_i) = grad_bg_i × fp_i  (since bg=0)
+    This gives a fast, per-candidate attribution in O(n_bits) time.
+    """
 
     def __init__(self, model, n_bits: int = 1024):
         self.model = model
         self.n_bits = n_bits
-        self._explainer = None
+        self._background_grad = None  # [n_bits] gradient at background
         self._background = None
 
     def _init_shap(self):
-        """Initialize SHAP explainer with background data."""
-        if self._explainer is not None:
+        """Pre-compute background gradient for fast SHAP approximation."""
+        if self._background_grad is not None:
             return
 
         try:
-            import shap
+            # Background: all-zero fingerprint (mean of binary features)
+            bg = torch.zeros(1, self.n_bits, dtype=torch.float32, requires_grad=True)
+            disease_emb = torch.zeros(1, 256, dtype=torch.float32)
 
-            # Create background: 50 random fingerprint vectors
-            np.random.seed(42)
-            self._background = np.random.randint(0, 2, size=(50, self.n_bits)).astype(np.float32)
+            self.model.eval()
+            logits = self.model(bg, disease_emb)
+            logits.backward()
 
-            # Wrap model for SHAP
-            def model_fn(fps):
-                with torch.no_grad():
-                    fp_tensor = torch.tensor(fps, dtype=torch.float32)
-                    # Use a zero disease embedding (mean)
-                    disease_emb = torch.zeros(fp_tensor.size(0), 256)
-                    logits = self.model(fp_tensor, disease_emb)
-                    return torch.sigmoid(logits).numpy()
+            self._background_grad = bg.grad.data.numpy().flatten()
+            self._background = np.zeros(self.n_bits, dtype=np.float32)
 
-            self._explainer = shap.KernelExplainer(model_fn, self._background)
-            logger.info("shap_explainer_initialized")
+            logger.info("shap_explainer_initialized", method="deep_explainer_approx")
 
-        except ImportError:
-            logger.warning("shap_not_available_using_gradient_fallback")
-            self._explainer = None
         except Exception as e:
             logger.error("shap_init_failed", error=str(e))
-            self._explainer = None
+            self._background_grad = None
 
     def explain(self, drug_fp: np.ndarray, disease_emb: np.ndarray) -> Dict[str, float]:
-        """Compute SHAP values for a drug fingerprint."""
+        """Compute SHAP values for a drug fingerprint using fast gradient approximation."""
         self._init_shap()
 
-        if self._explainer is not None:
+        if self._background_grad is not None:
             try:
-                import shap
+                # DeepExplainer-style: shap_i = grad_bg_i × (fp_i - bg_i)
+                # Since bg=0, this simplifies to grad_bg_i × fp_i
+                shap_values = self._background_grad * drug_fp
 
-                fp = drug_fp.reshape(1, -1)
-                shap_values = self._explainer.shap_values(fp)
-                if isinstance(shap_values, list):
-                    shap_values = shap_values[0]
-                shap_values = shap_values.flatten()
-
-                # Get top 10 by absolute value
-                top_indices = np.argsort(np.abs(shap_values))[-10:][::-1]
+                # Get top 15 by absolute value
+                top_indices = np.argsort(np.abs(shap_values))[-15:][::-1]
                 result = {}
                 for idx in top_indices:
                     result[f"morgan_bit_{idx}"] = float(shap_values[idx])
@@ -265,13 +261,13 @@ class SHAPExplainer:
             except Exception as e:
                 logger.warning("shap_explain_failed", error=str(e))
 
-        # Fallback: gradient-based attribution
+        # Fallback: per-candidate gradient attribution
         return self._gradient_attribution(drug_fp, disease_emb)
 
     def _gradient_attribution(
         self, drug_fp: np.ndarray, disease_emb: np.ndarray
     ) -> Dict[str, float]:
-        """Gradient-based feature attribution fallback."""
+        """Gradient-based feature attribution fallback (per-candidate)."""
         try:
             fp_tensor = torch.tensor(drug_fp, dtype=torch.float32, requires_grad=True).unsqueeze(0)
             disease_tensor = torch.tensor(disease_emb, dtype=torch.float32).unsqueeze(0)
@@ -280,11 +276,11 @@ class SHAPExplainer:
             logits.backward()
 
             gradients = fp_tensor.grad.data.numpy().flatten()
-            # Attribution = gradient * input (like Integrated Gradients with single step)
+            # Attribution = gradient × input (Integrated Gradients, single step)
             attributions = gradients * drug_fp
 
-            # Top 10 by absolute attribution
-            top_indices = np.argsort(np.abs(attributions))[-10:][::-1]
+            # Top 15 by absolute attribution
+            top_indices = np.argsort(np.abs(attributions))[-15:][::-1]
             result = {}
             for idx in top_indices:
                 result[f"morgan_bit_{idx}"] = float(attributions[idx])

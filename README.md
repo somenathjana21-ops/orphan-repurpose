@@ -5,7 +5,7 @@ An AI-powered platform that identifies and validates drug repurposing opportunit
 ## Overview
 
 OrphanRepurpose addresses the critical unmet need in rare disease therapeutics by leveraging AI to repurpose existing approved drugs for new indications. The platform combines:
-- Curated knowledge graph of rare diseases and drug mechanisms
+- Curated knowledge graph of rare diseases and drug mechanisms (Kuzu embedded database)
 - Multimodal public datasets (DrugCentral, TDC, FAERS, ClinicalTrials.gov, PubMed, ChEMBL)
 - Explainable AI with clinician validation workflows
 - Audit trails suitable for FDA Orphan Drug Designation submissions
@@ -15,18 +15,20 @@ OrphanRepurpose addresses the critical unmet need in rare disease therapeutics b
 - **Knowledge Graph Construction**: Integrated rare disease knowledge graph using Kuzu embedded database
 - **Drug-Disease Prediction**: Graph neural network models (DualEncoderCrossAttention, SimpleIndicationModel_MLP) for indication prediction
 - **Explainability Suite**: SHAP values, counterfactual explanations, knowledge graph path extraction, and BioMistral-7B generated rationales
-- **Safety Filtering**: FAERS-based adverse event analysis and TDC ADMET predictions
-- **Validation Interface**: Clinician-in-the-loop validation with audit logging
+- **Safety Filtering**: FAERS-based adverse event analysis (openFDA API) and TDC ADMET predictions
+- **Validation Interface**: Clinician-in-the-loop validation with SQLite-persisted audit logging
 - **Dossier Generation**: Automated FDA-ready submission documents with credibility mapping
+- **KG Browser**: Browse the real Kuzu knowledge graph with drug/disease search and statistics
 
 ## Technical Stack
 
-- **Backend**: Python, PyTorch/PyG, Kuzu (embedded graph database)
+- **Backend**: Python, PyTorch/PyG, Kuzu (embedded graph database), FastAPI, SQLAlchemy
 - **ML Models**: GraphSAGE, RGCN, DualEncoderCrossAttention, MLP with Morgan fingerprints
 - **Explainability**: SHAP, BioMistral-7B (LLM rationale), knowledge graph traversal
 - **API**: RESTful endpoints for model inference and knowledge graph queries
-- **Frontend**: React/Vite interface (in prototype directory)
-- **Data Sources**: DrugCentral, TDC, FAERS, ChEMBL, ClinicalTrials.gov, PubMed
+- **Frontend**: React/Vite interface with KG Browser, Case Studies, Dossier Builder
+- **Data Sources**: DrugCentral, TDC, FAERS (openFDA), ChEMBL, ClinicalTrials.gov, PubMed
+- **Persistence**: SQLite for candidates, audit logs, and validations
 
 ## Current Status & Metrics
 
@@ -80,6 +82,7 @@ orphan-repurpose/
    pip install -r requirements.txt  # If available
    # Or install key packages:
    pip install torch torch-geometric kuzu tdc rdkit pandas numpy scikit-learn
+   pip install shap  # For SHAP explainability
    ```
 
 3. Run the prototype:

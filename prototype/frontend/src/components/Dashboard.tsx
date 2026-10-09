@@ -20,13 +20,13 @@ export function Dashboard() {
     queryKey: ['diseases', { query, prevalenceMax, gene, pathway, page, pageSize, sortBy, sortOrder }],
     queryFn: () => diseasesApi.search({
       query: query || undefined,
-      prevalenceMax: prevalenceMax ? Number(prevalenceMax) : undefined,
+      prevalence_max: prevalenceMax ? Number(prevalenceMax) : undefined,
       gene: gene || undefined,
       pathway: pathway || undefined,
       page,
-      pageSize,
-      sortBy,
-      sortOrder,
+      page_size: pageSize,
+      sort_by: sortBy,
+      sort_order: sortOrder,
     }),
     placeholderData: (previous) => previous,
   })

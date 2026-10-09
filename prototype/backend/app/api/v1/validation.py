@@ -3,6 +3,10 @@ from typing import List, Optional
 from datetime import datetime, timezone
 import structlog
 import uuid
+
+from sqlalchemy import select
+from app.db.database import async_session_factory
+from app.db.models import ValidationModel, SelfAssessmentModel
 from app.models.disease import ValidationRequest, SelfAssessmentRequest, AuditEntry, AuditTrail
 from app.services.audit_service import get_audit_service
 
@@ -16,7 +20,7 @@ async def validate_candidate(candidate_id: str, request: ValidationRequest):
     try:
         session_id = str(uuid.uuid4())
         svc = get_audit_service()
-        entry = svc.add_entry(
+        entry = await svc.add_entry(
             session_id=session_id,
             entry_type="validation",
             user=request.validator,
@@ -26,6 +30,21 @@ async def validate_candidate(candidate_id: str, request: ValidationRequest):
                 "rationale": request.rationale,
             },
         )
+
+        # Also store in validations table
+        from app.db.database import _ensure_tables
+        await _ensure_tables()
+        async with async_session_factory() as db:
+            validation = ValidationModel(
+                candidate_id=candidate_id,
+                validator=request.validator,
+                assessment=request.assessment,
+                rationale=request.rationale,
+                session_id=session_id,
+            )
+            db.add(validation)
+            await db.commit()
+
         logger.info("validation_recorded", candidate_id=candidate_id, validator=request.validator)
         return {
             "candidate_id": candidate_id,
@@ -44,7 +63,7 @@ async def self_assess_candidate(candidate_id: str, request: SelfAssessmentReques
     try:
         session_id = str(uuid.uuid4())
         svc = get_audit_service()
-        entry = svc.add_entry(
+        entry = await svc.add_entry(
             session_id=session_id,
             entry_type="self_assessment",
             user="self",
@@ -56,6 +75,22 @@ async def self_assess_candidate(candidate_id: str, request: SelfAssessmentReques
                 "notes": request.notes,
             },
         )
+
+        # Also store in self_assessments table
+        from app.db.database import _ensure_tables
+        await _ensure_tables()
+        async with async_session_factory() as db:
+            assessment = SelfAssessmentModel(
+                candidate_id=candidate_id,
+                efficacy=request.efficacy,
+                safety=request.safety,
+                feasibility=request.feasibility,
+                notes=request.notes,
+                session_id=session_id,
+            )
+            db.add(assessment)
+            await db.commit()
+
         logger.info("self_assessment_recorded", candidate_id=candidate_id)
         return {
             "candidate_id": candidate_id,
@@ -73,7 +108,7 @@ async def get_audit_trail(session_id: str):
     """Get audit trail for a session."""
     try:
         svc = get_audit_service()
-        trail = svc.get_trail(session_id)
+        trail = await svc.get_trail(session_id)
         if trail is None:
             raise HTTPException(status_code=404, detail=f"Audit trail for session {session_id} not found")
         return trail
@@ -89,7 +124,7 @@ async def verify_audit_trail(session_id: str):
     """Verify the integrity of an audit trail by checking hash chain."""
     try:
         svc = get_audit_service()
-        result = svc.verify(session_id)
+        result = await svc.verify(session_id)
         if not result.get("valid") and result.get("message") == "Session not found":
             raise HTTPException(status_code=404, detail=f"Audit trail for session {session_id} not found")
         return result
@@ -98,3 +133,15 @@ async def verify_audit_trail(session_id: str):
     except Exception as e:
         logger.error("audit_verification_failed", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to verify audit trail")
+
+
+@router.get("/sessions")
+async def list_sessions():
+    """List all audit session IDs."""
+    try:
+        svc = get_audit_service()
+        sessions = await svc.get_all_sessions()
+        return {"sessions": sessions}
+    except Exception as e:
+        logger.error("audit_list_sessions_failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to list sessions")

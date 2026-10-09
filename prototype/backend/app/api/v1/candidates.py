@@ -165,7 +165,7 @@ async def generate_candidates(request: CandidateGenerateRequest):
             scores = svc.score_all_for_orpha(umls_key, top_k=20)
             if scores:
                 candidates = [_candidate_from_score(i + 1, s) for i, s in enumerate(scores)]
-                _store_candidates(candidates)
+                await _store_candidates(candidates)
                 logger.info(
                     "candidates_generated_from_model",
                     disease_id=disease_id,
@@ -184,36 +184,93 @@ async def generate_candidates(request: CandidateGenerateRequest):
         raise HTTPException(status_code=404, detail=f"Disease {disease_id} not found")
 
     if disease_id == "ORPHA:635":
-        return CandidateGenerateResponse(
-            candidates=[_candidate_from_score(1, {"drug_id": "drugcentral:1001", "probability": 0.85, "ci_lower": 0.75, "ci_upper": 0.92}),
-                        _candidate_from_score(2, {"drug_id": "drugcentral:1002", "probability": 0.72, "ci_lower": 0.60, "ci_upper": 0.81})],
-            session_id="sess_ORPHA_635",
-        )
+        candidates = [
+            _candidate_from_score(1, {"drug_id": "drugcentral:1001", "probability": 0.85, "ci_lower": 0.75, "ci_upper": 0.92}),
+            _candidate_from_score(2, {"drug_id": "drugcentral:1002", "probability": 0.72, "ci_lower": 0.60, "ci_upper": 0.81}),
+        ]
+        session_id = "sess_ORPHA_635"
     elif disease_id == "ORPHA:793":
-        return CandidateGenerateResponse(
-            candidates=[_candidate_from_score(1, {"drug_id": "drugcentral:1003", "probability": 0.90, "ci_lower": 0.82, "ci_upper": 0.95})],
-            session_id="sess_ORPHA_793",
+        candidates = [
+            _candidate_from_score(1, {"drug_id": "drugcentral:1003", "probability": 0.90, "ci_lower": 0.82, "ci_upper": 0.95}),
+        ]
+        session_id = "sess_ORPHA_793"
+    else:
+        candidates = [
+            _candidate_from_score(1, {"drug_id": "drugcentral:1001", "probability": 0.55, "ci_lower": 0.40, "ci_upper": 0.70}),
+        ]
+        session_id = f"sess_{disease_id.replace(':', '_')}"
+
+    # Store in SQLite
+    await _store_candidates(candidates)
+    return CandidateGenerateResponse(candidates=candidates, session_id=session_id)
+
+
+
+async def _store_candidates(candidates):
+    """Store candidates in SQLite for persistence (upsert)."""
+    from app.db.database import async_session_factory, _ensure_tables
+    from app.db.models import CandidateModel
+    from sqlalchemy import select
+
+    await _ensure_tables()
+    async with async_session_factory() as db:
+        for c in candidates:
+            # Check if candidate already exists
+            result = await db.execute(
+                select(CandidateModel).where(CandidateModel.id == c.candidate_id)
+            )
+            existing = result.scalar_one_or_none()
+            if existing:
+                # Update existing
+                existing.drug_id = c.drug_id
+                existing.drug_name = c.drug_name
+                existing.indication_probability = c.indication_probability
+                existing.ci_lower = c.confidence_interval[0]
+                existing.ci_upper = c.confidence_interval[1]
+                existing.moa_summary = c.moa_summary
+                existing.llm_rationale = c.llm_rationale
+            else:
+                db_candidate = CandidateModel(
+                    id=c.candidate_id,
+                    drug_id=c.drug_id,
+                    drug_name=c.drug_name,
+                    indication_probability=c.indication_probability,
+                    ci_lower=c.confidence_interval[0],
+                    ci_upper=c.confidence_interval[1],
+                    moa_summary=c.moa_summary,
+                    llm_rationale=c.llm_rationale,
+                    session_id=f"sess_{c.candidate_id}",
+                )
+                db.add(db_candidate)
+        await db.commit()
+
+
+async def _lookup_candidate(candidate_id: str):
+    """Look up a candidate from SQLite, generating the default NPC set if not found."""
+    from app.db.database import async_session_factory, _ensure_tables
+    from app.db.models import CandidateModel
+    from sqlalchemy import select
+
+    await _ensure_tables()
+    async with async_session_factory() as db:
+        result = await db.execute(
+            select(CandidateModel).where(CandidateModel.id == candidate_id)
         )
-    return CandidateGenerateResponse(
-        candidates=[_candidate_from_score(1, {"drug_id": "drugcentral:1001", "probability": 0.55, "ci_lower": 0.40, "ci_upper": 0.70})],
-        session_id=f"sess_{disease_id.replace(':', '_')}",
-    )
+        row = result.scalar_one_or_none()
+        if row:
+            return Candidate(
+                candidate_id=row.id,
+                drug_id=row.drug_id,
+                drug_name=row.drug_name,
+                indication_probability=row.indication_probability,
+                confidence_interval=[row.ci_lower, row.ci_upper],
+                moa_summary=row.moa_summary,
+                safety_flags=DEFAULT_SAFETY,
+                kg_paths=[],
+                llm_rationale=row.llm_rationale,
+                shap_values={},
+            )
 
-
-
-# In-memory store of generated candidates, keyed by candidate_id
-_CANDIDATE_STORE: dict = {}
-
-
-def _store_candidates(candidates):
-    for c in candidates:
-        _CANDIDATE_STORE[c.candidate_id] = c
-
-
-def _lookup_candidate(candidate_id: str):
-    """Look up a candidate, generating the default NPC set if the store is cold."""
-    if candidate_id in _CANDIDATE_STORE:
-        return _CANDIDATE_STORE[candidate_id]
     # Cold start: materialise the NPC candidate list so detail views work.
     try:
         from app.services.indication_service import get_indication_service
@@ -222,9 +279,10 @@ def _lookup_candidate(candidate_id: str):
         if svc.is_ready():
             scores = svc.score_all_for_orpha("UMLS:C0028042", top_k=20)
             cands = [_candidate_from_score(i + 1, s) for i, s in enumerate(scores)]
-            _store_candidates(cands)
-            if candidate_id in _CANDIDATE_STORE:
-                return _CANDIDATE_STORE[candidate_id]
+            await _store_candidates(cands)
+            for c in cands:
+                if c.candidate_id == candidate_id:
+                    return c
     except Exception as e:
         logger.warning("candidate_cold_start_failed", error=str(e))
     return None
@@ -233,7 +291,7 @@ def _lookup_candidate(candidate_id: str):
 @router.get("/{candidate_id}", response_model=Candidate)
 async def get_candidate(candidate_id: str):
     """Get detailed candidate information."""
-    candidate = _lookup_candidate(candidate_id)
+    candidate = await _lookup_candidate(candidate_id)
     if candidate is not None:
         return candidate
     raise HTTPException(status_code=404, detail=f"Candidate {candidate_id} not found")
@@ -268,7 +326,9 @@ async def get_candidate_explanation(candidate_id: str):
 @router.get("/{candidate_id}/safety")
 async def get_candidate_safety(candidate_id: str):
     """Get safety assessment for a candidate."""
-    candidate = await get_candidate(candidate_id)
+    candidate = await _lookup_candidate(candidate_id)
+    if candidate is None:
+        raise HTTPException(status_code=404, detail=f"Candidate {candidate_id} not found")
     try:
         from app.services.safety_service import get_safety_service
         svc = get_safety_service()
@@ -280,7 +340,7 @@ async def get_candidate_safety(candidate_id: str):
                 smiles = ind_svc.drug_smiles.get(candidate.drug_id, "")
         except Exception:
             pass
-        result = svc.assess_drug(
+        result = await svc.assess_drug(
             drug_id=candidate.drug_id,
             drug_name=candidate.drug_name,
             smiles=smiles,

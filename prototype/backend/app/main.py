@@ -14,6 +14,13 @@ logger = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("starting_orphan_repurpose_api")
+    # Initialize database tables
+    try:
+        from app.db.database import create_tables
+        await create_tables()
+        logger.info("database_tables_created")
+    except Exception as e:
+        logger.warning("database_init_failed", error=str(e))
     # Initialize connections, load models, etc.
     yield
     logger.info("shutting_down_orphan_repurpose_api")
@@ -22,7 +29,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="OrphanRepurpose API",
     description="AI-Driven Drug Repurposing for Rare & Orphan Diseases",
-    version="0.1.0",
+    version="0.2.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
@@ -55,7 +62,7 @@ async def health_check():
 async def root():
     return {
         "service": "OrphanRepurpose API",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "docs": "/docs",
         "disclaimer": "RESEARCH PROTOTYPE — Not for clinical use. Outputs require human expert validation.",
     }

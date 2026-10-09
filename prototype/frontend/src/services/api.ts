@@ -8,6 +8,14 @@ import type {
   SafetyFlags,
   AuditTrail,
   DossierResponse,
+  KGSearchResponse,
+  KGSubgraphResponse,
+  KGStatsResponse,
+  KGDrug,
+  KGDrugDetail,
+  KGDisease,
+  KGDiseaseDetail,
+  KGPaginatedResponse,
 } from '../types'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -45,13 +53,13 @@ api.interceptors.response.use(
 export const diseasesApi = {
   search: async (params: {
     query?: string
-    prevalenceMax?: number
+    prevalence_max?: number
     gene?: string
     pathway?: string
     page?: number
-    pageSize?: number
-    sortBy?: string
-    sortOrder?: string
+    page_size?: number
+    sort_by?: string
+    sort_order?: string
   }): Promise<DiseaseSearchResponse> => {
     const { data } = await api.get<DiseaseSearchResponse>('/api/v1/diseases', { params })
     return data
@@ -161,32 +169,52 @@ export const dossierApi = {
 
 // KG API
 export const kgApi = {
-  search: async (params: { query?: string; limit?: number }) => {
-    const { data } = await api.get('/api/v1/kg/search', { params })
+  search: async (params: { query?: string; limit?: number }): Promise<KGSearchResponse> => {
+    const { data } = await api.get<KGSearchResponse>('/api/v1/kg/search', { params })
     return data
   },
 
-  getSubgraph: async (drugId: string, diseaseId: string, maxDepth?: number) => {
-    const { data } = await api.get('/api/v1/kg/subgraph', {
+  getSubgraph: async (drugId: string, diseaseId: string, maxDepth?: number): Promise<KGSubgraphResponse> => {
+    const { data } = await api.get<KGSubgraphResponse>('/api/v1/kg/subgraph', {
       params: { drug_id: drugId, disease_id: diseaseId, max_depth: maxDepth },
     })
     return data
   },
 
-  getStats: async () => {
-    const { data } = await api.get('/api/v1/kg/stats')
+  getStats: async (): Promise<KGStatsResponse> => {
+    const { data } = await api.get<KGStatsResponse>('/api/v1/kg/stats')
+    return data
+  },
+
+  getDrugs: async (params: { page?: number; page_size?: number; query?: string }): Promise<KGPaginatedResponse<KGDrug>> => {
+    const { data } = await api.get<KGPaginatedResponse<KGDrug>>('/api/v1/kg/drugs', { params })
+    return data
+  },
+
+  getDrug: async (drugId: string): Promise<KGDrugDetail> => {
+    const { data } = await api.get<KGDrugDetail>(`/api/v1/kg/drugs/${drugId}`)
+    return data
+  },
+
+  getDiseases: async (params: { page?: number; page_size?: number; query?: string }): Promise<KGPaginatedResponse<KGDisease>> => {
+    const { data } = await api.get<KGPaginatedResponse<KGDisease>>('/api/v1/kg/diseases', { params })
+    return data
+  },
+
+  getDisease: async (diseaseId: string): Promise<KGDiseaseDetail> => {
+    const { data } = await api.get<KGDiseaseDetail>(`/api/v1/kg/diseases/${diseaseId}`)
     return data
   },
 }
 
 // Literature API
 export const literatureApi = {
-  search: async (params: { query: string; limit?: number }) => {
+  search: async (params: { query: string; limit?: number }): Promise<{ results: any[]; total: number }> => {
     const { data } = await api.get('/api/v1/literature/search', { params })
     return data
   },
 
-  summarize: async (pmids: string[]) => {
+  summarize: async (pmids: string[]): Promise<{ summaries: any[] }> => {
     const { data } = await api.post('/api/v1/literature/summarize', pmids)
     return data
   },

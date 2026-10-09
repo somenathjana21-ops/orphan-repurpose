@@ -1,6 +1,6 @@
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { diseasesApi } from '../services/api'
+import { diseasesApi, kgApi } from '../services/api'
 
 export function DiseaseDetail() {
   const { orphaId } = useParams<{ orphaId: string }>()
@@ -20,6 +20,12 @@ export function DiseaseDetail() {
   const { data: pathways, isLoading: pathwaysLoading } = useQuery({
     queryKey: ['disease-pathways', orphaId],
     queryFn: () => diseasesApi.getPathways(orphaId!),
+    enabled: !!orphaId,
+  })
+
+  const { data: kgDisease } = useQuery({
+    queryKey: ['kg-disease', orphaId],
+    queryFn: () => kgApi.getDisease(orphaId!),
     enabled: !!orphaId,
   })
 
@@ -161,11 +167,30 @@ export function DiseaseDetail() {
         )}
       </div>
 
+      {/* KG Targets */}
+      {kgDisease && kgDisease.targets && kgDisease.targets.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            Knowledge Graph Targets ({kgDisease.targets.length})
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {kgDisease.targets.map((target, i) => (
+              <span key={i} className="bg-purple-50 px-3 py-1.5 text-xs font-medium rounded text-purple-800">
+                {target.name} ({target.gene})
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Action Button */}
-      <div className="mt-8">
+      <div className="mt-8 flex gap-4">
         <a href={`/diseases/${disease.orpha_id}/candidates`} className="btn-primary px-6 py-2">
           Generate Repurposing Candidates
         </a>
+        <Link to={`/kg?disease=${disease.orpha_id}`} className="btn-secondary px-6 py-2">
+          View in Knowledge Graph
+        </Link>
       </div>
     </div>
   )

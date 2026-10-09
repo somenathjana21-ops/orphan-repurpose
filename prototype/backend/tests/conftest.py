@@ -25,3 +25,11 @@ def mock_kg_service():
     mock.search_diseases.return_value = ([], 0)
     mock.get_disease.return_value = None
     return mock
+
+
+@pytest.fixture
+async def db_session():
+    """Create a test database session."""
+    from app.db.database import get_session
+    async for session in get_session():
+        yield session

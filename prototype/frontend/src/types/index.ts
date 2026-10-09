@@ -190,3 +190,20 @@ export interface CredibilityMap {
   step_6_deployment: string
   step_7_lifecycle: string
 }
+
+// Re-export KG types
+export type {
+  KGEntity,
+  KGSearchResponse,
+  KGSubgraphResponse,
+  KGSubgraphNode,
+  KGSubgraphEdge,
+  KGStatsResponse,
+  KGDrug,
+  KGDrugDetail,
+  KGTarget,
+  KGDisease,
+  KGDiseaseDetail,
+  KGGene,
+  KGPaginatedResponse,
+} from './kg'

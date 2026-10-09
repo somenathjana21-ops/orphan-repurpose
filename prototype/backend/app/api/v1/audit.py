@@ -13,7 +13,7 @@ async def get_audit_trail(session_id: str):
     """Get audit trail for a session."""
     try:
         svc = get_audit_service()
-        trail = svc.get_trail(session_id)
+        trail = await svc.get_trail(session_id)
         if trail is None:
             raise HTTPException(status_code=404, detail=f"Audit trail for session {session_id} not found")
         return trail
@@ -29,7 +29,7 @@ async def verify_audit_trail(session_id: str):
     """Verify the integrity of an audit trail by checking hash chain."""
     try:
         svc = get_audit_service()
-        result = svc.verify(session_id)
+        result = await svc.verify(session_id)
         if not result.get("valid") and result.get("message") == "Session not found":
             raise HTTPException(status_code=404, detail=f"Audit trail for session {session_id} not found")
         return result
