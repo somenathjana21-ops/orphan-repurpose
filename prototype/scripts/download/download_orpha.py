@@ -1,30 +1,32 @@
 #!/usr/bin/env python3
 """
 Download Orphanet data.
-Source: https://www.orpha.net/orphacom/cahiers/docs/GB/Orphanet_rare_diseases.zip
+Source: https://www.orphadata.com/data/xml/
 """
 import os
 import requests
-import zipfile
 from pathlib import Path
-from tqdm import tqdm
 import structlog
+from tqdm import tqdm
 
 logger = structlog.get_logger()
 
-ORPHANET_URL = "https://www.orpha.net/orphacom/cahiers/docs/GB/Orphanet_rare_diseases.zip"
-ORPHANET_ENZYMES_URL = "https://www.orpha.net/orphacom/cahiers/docs/GB/Orphanet_enzymes.zip"
-ORPHANET_GENES_URL = "https://www.orpha.net/orphacom/cahiers/docs/GB/Orphanet_genes.zip"
-ORPHANET_HPO_URL = "https://www.orpha.net/orphacom/cahiers/docs/GB/Orphanet_HPO.zip"
-ORPHANET_LINEARIZATION_URL = "https://www.orpha.net/orphacom/cahiers/docs/GB/Orphanet_linearization.zip"
+ORPHADATA_BASE = "https://www.orphadata.com/data/xml/"
 
+ORPHANET_FILES = {
+    "rare_diseases": "en_product4.xml",
+    "genes": "en_product6.xml",
+    "hpo": "en_product9_ages.xml",
+    "linearization": "en_product10.xml",
+    # enzymes file not found in orphadata; we'll skip for now
+}
 
 def download_file(url: str, dest: Path, chunk_size: int = 8192):
     """Download file with progress bar."""
     response = requests.get(url, stream=True)
     response.raise_for_status()
     total = int(response.headers.get('content-length', 0))
-    
+
     with open(dest, 'wb') as f, tqdm(
         desc=dest.name,
         total=total,
@@ -37,39 +39,24 @@ def download_file(url: str, dest: Path, chunk_size: int = 8192):
                 f.write(chunk)
                 pbar.update(len(chunk))
 
-
 def download_orpha_data(data_dir: Path):
     """Download all Orphanet datasets."""
     raw_dir = data_dir / "raw" / "orpha"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    
-    urls = {
-        "rare_diseases": ORPHANET_URL,
-        "enzymes": ORPHANET_ENZYMES_URL,
-        "genes": ORPHANET_GENES_URL,
-        "hpo": ORPHANET_HPO_URL,
-        "linearization": ORPHANET_LINEARIZATION_URL,
-    }
-    
-    for name, url in urls.items():
-        zip_path = raw_dir / f"{name}.zip"
-        if zip_path.exists():
-            logger.info("file_exists_skipping", file=str(zip_path))
+
+    for name, filename in ORPHANET_FILES.items():
+        url = ORPHADATA_BASE + filename
+        dest_path = raw_dir / filename
+        if dest_path.exists():
+            logger.info("file_exists_skipping", file=str(dest_path))
             continue
-        
         logger.info("downloading", name=name, url=url)
         try:
-            download_file(url, zip_path)
-            
-            # Extract
-            with zipfile.ZipFile(zip_path, 'r') as zf:
-                zf.extractall(raw_dir / name)
-            
-            logger.info("downloaded_and_extracted", name=name, path=str(raw_dir / name))
+            download_file(url, dest_path)
+            logger.info("downloaded", name=name, path=str(dest_path))
         except Exception as e:
             logger.error("download_failed", name=name, error=str(e))
             raise
-
 
 if __name__ == "__main__":
     import sys

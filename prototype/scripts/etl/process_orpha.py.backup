@@ -15,41 +15,44 @@ logger = structlog.get_logger()
 def parse_orphanet_rare_diseases(xml_path: Path) -> pd.DataFrame:
     """Parse Orphanet rare diseases XML."""
     logger.info("parsing_orphanet_diseases", path=str(xml_path))
-
+    
     tree = ET.parse(xml_path)
     root = tree.getroot()
-
+    
     diseases = []
-    # Iterate over each Disorder element
-    for disorder in tqdm(root.findall('.//Disorder'), desc="Parsing disorders"):
+    for association in tqdm(root.findall('.//HPODisorderAssociation'), desc="Parsing diseases"):
+        disorder = association.find('Disorder')
+        if disorder is None:
+            continue
         orpha_code = disorder.find('OrphaCode')
         name = disorder.find('Name')
+        
         if orpha_code is None or name is None:
             continue
-
+        
         orpha_id = f"ORPHA:{orpha_code.text}"
         disease_name = name.text
-
+        
         # Prevalence
         prevalence_elem = disorder.find('.//Prevalence/ValMoy')
         prevalence = float(prevalence_elem.text) if prevalence_elem is not None and prevalence_elem.text else None
-
+        
         # Prevalence category
         prev_class = disorder.find('.//Prevalence/PrevalenceClass/Name')
         prevalence_category = prev_class.text if prev_class is not None else None
-
+        
         # Inheritance
         inheritance = []
         for inh in disorder.findall('.//TypeOfInheritance/Name'):
             if inh.text:
                 inheritance.append(inh.text)
-
+        
         # Age of onset
         onset = []
         for age in disorder.findall('.//AverageAgeOfOnset/Name'):
             if age.text:
                 onset.append(age.text)
-
+        
         # Genes
         genes = []
         for gene in disorder.findall('.//GeneList/Gene'):
@@ -62,10 +65,10 @@ def parse_orphanet_rare_diseases(xml_path: Path) -> pd.DataFrame:
                     "symbol": symbol.text,
                     "name": gene_name.text,
                 })
-
-        # HPO terms (from the association list under the disorder)
+        
+        # HPO terms (from the association)
         hpo_terms = []
-        hpo_list = disorder.find('HPODisorderAssociationList')
+        hpo_list = association.find('HPODisorderAssociationList')
         if hpo_list is not None:
             for hpo_assoc in hpo_list.findall('.//HPODisorderAssociation'):
                 hpo_id = hpo_assoc.find('HPOId')
@@ -75,7 +78,7 @@ def parse_orphanet_rare_diseases(xml_path: Path) -> pd.DataFrame:
                         "id": hpo_id.text,
                         "term": hpo_term.text,
                     })
-
+        
         diseases.append({
             "id": orpha_id,
             "name": disease_name,
@@ -86,7 +89,7 @@ def parse_orphanet_rare_diseases(xml_path: Path) -> pd.DataFrame:
             "genes": genes,
             "hpo_terms": hpo_terms,
         })
-
+    
     logger.info("parsed_diseases", count=len(diseases))
     return pd.DataFrame(diseases)
 def parse_orphanet_genes(xml_path: Path) -> pd.DataFrame:
