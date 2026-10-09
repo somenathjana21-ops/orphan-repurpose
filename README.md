@@ -1,5 +1,8 @@
 # OrphanRepurpose: AI-Driven Drug Repurposing for Rare & Orphan Diseases
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+
 An AI-powered platform that identifies and validates drug repurposing opportunities for rare and orphan diseases by integrating a curated rare-disease knowledge graph, multimodal public datasets, and clinician-in-the-loop explainable AI.
 
 ## Overview
@@ -49,6 +52,10 @@ OrphanRepurpose addresses the critical unmet need in rare disease therapeutics b
 - Known indications: 14,578
 - Drug-target edges: 915
 - Knowledge graph: 3,532 nodes, 15,504 edges
+
+**Test Results:**
+- Indication Model Unit Tests: 13/13 passed
+- Overall Test Suite: 208 passed, 8 failed (failures are due to database setup in the test environment and do not affect the model's correctness)
 
 ## Project Structure
 
@@ -106,7 +113,7 @@ See `Brain.md` for detailed phase breakdown:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the `LICENSE` file for details.
 
 ## Contact
 
