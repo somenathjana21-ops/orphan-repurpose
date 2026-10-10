@@ -51,7 +51,13 @@ export default {
         '4xl': '2.25rem',
         '5xl': '2.75rem',
       },
+      spacing: {
+        '4.5': '1.125rem',
+        '5.5': '1.375rem',
+      },
       boxShadow: {
+        '2xs': '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        'xs': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
         'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
         'glass-sm': '0 4px 16px 0 rgba(31, 38, 135, 0.05)',
         'glass-lg': '0 16px 48px 0 rgba(31, 38, 135, 0.12)',
