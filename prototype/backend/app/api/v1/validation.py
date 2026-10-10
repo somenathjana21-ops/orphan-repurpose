@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 
 import structlog
@@ -103,6 +105,18 @@ async def self_assess_candidate(candidate_id: str, request: SelfAssessmentReques
         raise HTTPException(status_code=500, detail="Failed to record self-assessment") from e
 
 
+@router.get("/sessions")
+async def list_sessions() -> dict[str, list[str]]:
+    """List all audit session IDs."""
+    try:
+        svc = get_audit_service()
+        sessions = await svc.get_all_sessions()
+        return {"sessions": sessions}
+    except Exception as e:
+        logger.error("audit_list_sessions_failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to list sessions") from e
+
+
 @router.get("/{session_id}", response_model=AuditTrail)
 async def get_audit_trail(session_id: str):
     """Get audit trail for a session."""
@@ -137,15 +151,3 @@ async def verify_audit_trail(session_id: str):
     except Exception as e:
         logger.error("audit_verification_failed", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to verify audit trail") from e
-
-
-@router.get("/sessions")
-async def list_sessions():
-    """List all audit session IDs."""
-    try:
-        svc = get_audit_service()
-        sessions = await svc.get_all_sessions()
-        return {"sessions": sessions}
-    except Exception as e:
-        logger.error("audit_list_sessions_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to list sessions") from e

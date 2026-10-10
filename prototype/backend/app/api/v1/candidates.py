@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import uuid
+
 import structlog
 from fastapi import APIRouter, HTTPException
 
@@ -188,7 +192,9 @@ def _build_kg_path(drug_id: str, drug_name: str, disease_name: str) -> list:
     ]
 
 
-def _candidate_from_score(rank: int, score: dict) -> Candidate:
+def _candidate_from_score(
+    rank: int, score: dict, disease_id: str = "ORPHA:635"
+) -> Candidate:
     """Turn a model score dict into a Candidate response object."""
     drug_id = score["drug_id"]
     meta = DRUG_META.get(drug_id) or _DRUG_META_LOADED.get(drug_id)
@@ -203,7 +209,8 @@ def _candidate_from_score(rank: int, score: dict) -> Candidate:
     safety = meta["safety"] if meta and "safety" in meta else DEFAULT_SAFETY
 
     return Candidate(
-        candidate_id=f"cand_{rank:03d}",
+        candidate_id=f"cand_{uuid.uuid5(uuid.NAMESPACE_URL, f'{disease_id}|{drug_id}').hex}",
+        disease_id=disease_id,
         drug_id=drug_id,
         drug_name=name,
         indication_probability=round(score["probability"], 4),
@@ -236,7 +243,9 @@ async def generate_candidates(request: CandidateGenerateRequest):
             umls_key = ORPHA_TO_UMLS.get(disease_id, disease_id)
             scores = svc.score_all_for_orpha(umls_key, top_k=20)
             if scores:
-                candidates = [_candidate_from_score(i + 1, s) for i, s in enumerate(scores)]
+                candidates = [
+                    _candidate_from_score(i + 1, s, disease_id) for i, s in enumerate(scores)
+                ]
                 await _store_candidates(candidates)
                 logger.info(
                     "candidates_generated_from_model",
@@ -265,6 +274,7 @@ async def generate_candidates(request: CandidateGenerateRequest):
                     "ci_lower": 0.75,
                     "ci_upper": 0.92,
                 },
+                disease_id,
             ),
             _candidate_from_score(
                 2,
@@ -274,6 +284,7 @@ async def generate_candidates(request: CandidateGenerateRequest):
                     "ci_lower": 0.60,
                     "ci_upper": 0.81,
                 },
+                disease_id,
             ),
         ]
         session_id = "sess_ORPHA_635"
@@ -287,6 +298,7 @@ async def generate_candidates(request: CandidateGenerateRequest):
                     "ci_lower": 0.82,
                     "ci_upper": 0.95,
                 },
+                disease_id,
             ),
         ]
         session_id = "sess_ORPHA_793"
@@ -300,6 +312,7 @@ async def generate_candidates(request: CandidateGenerateRequest):
                     "ci_lower": 0.40,
                     "ci_upper": 0.70,
                 },
+                disease_id,
             ),
         ]
         session_id = f"sess_{disease_id.replace(':', '_')}"
@@ -309,15 +322,18 @@ async def generate_candidates(request: CandidateGenerateRequest):
     return CandidateGenerateResponse(candidates=candidates, session_id=session_id)
 
 
-async def _store_candidates(candidates):
-    """Store candidates in SQLite for persistence (upsert)."""
-    from sqlalchemy import select
+async def _store_candidates(candidates: list[Candidate]) -> None:
+    """Persist candidate scores and complete evidence in a single transaction."""
+    from sqlalchemy import select, text
 
     from app.db.database import _ensure_tables, async_session_factory
-    from app.db.models import CandidateModel
+    from app.db.models import CandidateDetailsModel, CandidateModel
 
     await _ensure_tables()
     async with async_session_factory() as db:
+        if db.get_bind().dialect.name == "sqlite":
+            # Serialize concurrent upserts before checking for existing rows.
+            await db.execute(text("BEGIN IMMEDIATE"))
         for c in candidates:
             # Check if candidate already exists
             result = await db.execute(
@@ -346,21 +362,32 @@ async def _store_candidates(candidates):
                     session_id=f"sess_{c.candidate_id}",
                 )
                 db.add(db_candidate)
+            await db.flush()
+            details = await db.get(CandidateDetailsModel, c.candidate_id)
+            payload = c.model_dump(mode="json")
+            if details is None:
+                db.add(CandidateDetailsModel(candidate_id=c.candidate_id, payload=payload))
+            else:
+                details.payload = payload
         await db.commit()
 
 
-async def _lookup_candidate(candidate_id: str):
+async def _lookup_candidate(candidate_id: str) -> Candidate | None:
     """Look up a candidate from SQLite, generating the default NPC set if not found."""
     from sqlalchemy import select
 
     from app.db.database import _ensure_tables, async_session_factory
-    from app.db.models import CandidateModel
+    from app.db.models import CandidateDetailsModel, CandidateModel
 
     await _ensure_tables()
     async with async_session_factory() as db:
         result = await db.execute(select(CandidateModel).where(CandidateModel.id == candidate_id))
         row = result.scalar_one_or_none()
         if row:
+            details = await db.get(CandidateDetailsModel, candidate_id)
+            if details is not None:
+                return Candidate.model_validate(details.payload)
+            meta = DRUG_META.get(row.drug_id) or _DRUG_META_LOADED.get(row.drug_id)
             return Candidate(
                 candidate_id=row.id,
                 drug_id=row.drug_id,
@@ -368,7 +395,7 @@ async def _lookup_candidate(candidate_id: str):
                 indication_probability=row.indication_probability,
                 confidence_interval=[row.ci_lower, row.ci_upper],
                 moa_summary=row.moa_summary,
-                safety_flags=DEFAULT_SAFETY,
+                safety_flags=meta.get("safety", DEFAULT_SAFETY) if meta else DEFAULT_SAFETY,
                 kg_paths=[],
                 llm_rationale=row.llm_rationale,
                 shap_values={},
@@ -405,18 +432,21 @@ async def get_candidate_explanation(candidate_id: str):
     """Get explanation for a candidate."""
     candidate = await get_candidate(candidate_id)
     try:
+        from app.api.v1.diseases import _DISEASE_BY_ID
         from app.services.explanation_service import get_explanation_service
 
         svc = get_explanation_service()
+        disease_id = candidate.disease_id or "unknown"
+        disease_name = _DISEASE_BY_ID.get(disease_id, {}).get("name", "query disease")
         explanation = svc.explain_candidate(
             drug_id=candidate.drug_id,
-            disease_id="unknown",
+            disease_id=disease_id,
             drug_name=candidate.drug_name,
-            disease_name="query disease",
+            disease_name=disease_name,
             probability=candidate.indication_probability,
             moa_summary=candidate.moa_summary,
         )
-        return explanation
+        return {**explanation, "candidate_id": candidate_id}
     except Exception as e:
         logger.warning("explanation_service_failed_falling_back", error=str(e))
         return {

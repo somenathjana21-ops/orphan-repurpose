@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.db.database import async_session_factory
 from app.db.models import AuditEntryModel
@@ -30,7 +30,7 @@ class AuditService:
         self._cache: dict[str, list[AuditEntry]] = {}
 
     @staticmethod
-    def _compute_hash(entry: AuditEntry, previous_hash: str = "") -> str:
+    def _compute_hash(entry: AuditEntry | AuditEntryModel, previous_hash: str = "") -> str:
         """Compute SHA-256 hash for an audit entry, chained to previous."""
         data = {
             "timestamp": entry.timestamp,
@@ -53,6 +53,13 @@ class AuditService:
 
         await _ensure_tables()
         async with async_session_factory() as db:
+            if db.get_bind().dialect.name == "sqlite":
+                # Reserve the database's write lock before reading the chain tip.
+                # This serializes independent connections/processes, including the
+                # first append (where there is no existing row to lock). Session
+                # cleanup rolls back and releases the lock if the append fails.
+                await db.execute(text("BEGIN IMMEDIATE"))
+
             # Get previous hash from DB
             result = await db.execute(
                 select(AuditEntryModel)
@@ -85,56 +92,58 @@ class AuditService:
             db.add(db_entry)
             await db.commit()
 
-            # Update cache
-            if session_id not in self._cache:
-                self._cache[session_id] = []
-            self._cache[session_id].append(entry)
+            # A new service may not have the persisted history in memory.
+            self._cache.pop(session_id, None)
 
             logger.info("audit_entry_added", session_id=session_id, type=entry_type, user=user)
             return entry
 
-    async def get_trail(self, session_id: str) -> AuditTrail | None:
-        """Get audit trail for a session from SQLite."""
-        # Check cache first
-        if session_id in self._cache:
-            return AuditTrail(session_id=session_id, entries=self._cache[session_id])
+    async def _get_rows(self, session_id: str) -> list[AuditEntryModel]:
+        """Read contents and stored links together in persisted chain order."""
+        from app.db.database import _ensure_tables
 
-        # Load from DB
+        await _ensure_tables()
+
+        # Always read persisted entries so other writers and tampering are visible.
         async with async_session_factory() as db:
             result = await db.execute(
                 select(AuditEntryModel)
                 .where(AuditEntryModel.session_id == session_id)
                 .order_by(AuditEntryModel.id.asc())
             )
-            entries = []
-            for row in result.scalars():
-                entry = AuditEntry(
-                    timestamp=row.timestamp,
-                    type=row.type,
-                    user=row.user,
-                    data=row.data,
-                    hash=row.hash,
-                )
-                entries.append(entry)
+            return list(result.scalars())
 
-            if not entries:
-                return None
+    async def get_trail(self, session_id: str) -> AuditTrail | None:
+        """Get audit trail for a session from SQLite."""
+        rows = await self._get_rows(session_id)
+        entries = [
+            AuditEntry(
+                timestamp=row.timestamp,
+                type=row.type,
+                user=row.user,
+                data=row.data,
+                hash=row.hash,
+            )
+            for row in rows
+        ]
+        if not entries:
+            self._cache.pop(session_id, None)
+            return None
 
-            # Populate cache
-            self._cache[session_id] = entries
-            return AuditTrail(session_id=session_id, entries=entries)
+        # Populate cache
+        self._cache[session_id] = entries
+        return AuditTrail(session_id=session_id, entries=entries)
 
     async def verify(self, session_id: str) -> dict[str, Any]:
         """Verify the integrity of an audit trail."""
-        trail = await self.get_trail(session_id)
-        if trail is None:
+        entries = await self._get_rows(session_id)
+        if not entries:
             return {"session_id": session_id, "valid": False, "message": "Session not found"}
 
-        entries = trail.entries
         previous_hash = ""
         for i, entry in enumerate(entries):
             expected_hash = self._compute_hash(entry, previous_hash)
-            if entry.hash != expected_hash:
+            if entry.previous_hash != previous_hash or entry.hash != expected_hash:
                 return {
                     "session_id": session_id,
                     "valid": False,
@@ -152,6 +161,9 @@ class AuditService:
 
     async def get_all_sessions(self) -> list[str]:
         """Get all session IDs from SQLite."""
+        from app.db.database import _ensure_tables
+
+        await _ensure_tables()
         async with async_session_factory() as db:
             result = await db.execute(select(AuditEntryModel.session_id).distinct())
             return [row[0] for row in result]

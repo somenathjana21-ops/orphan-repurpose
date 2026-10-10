@@ -323,6 +323,12 @@ export function DossierBuilder() {
             </div>
           </div>
 
+          {!dossier.pdf_base64 && (
+            <p role="status" className="text-sm text-amber-800">
+              PDF export is unavailable. You can still export this dossier as JSON.
+            </p>
+          )}
+
           {/* Dossier Structured Content Preview */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200/80 space-y-4 max-h-96 overflow-y-auto scrollbar-thin font-mono text-xs text-slate-700">
             <div className="font-sans">

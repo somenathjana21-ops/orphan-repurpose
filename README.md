@@ -106,6 +106,9 @@ The platform features an **Asklepios-inspired clinical design system** crafted f
 - **Multi-Modal Explainability**: Combines SHAP feature attributions, path traversal in the knowledge graph, and BioMistral-7B natural language rationales.
 - **Safety & Disproportionality Scoring**: OpenFDA FAERS adverse event signal detection (PRR/ROR) + RDKit/TDC ADMET property filtering.
 - **Clinician Validation Workspace**: Dedicated review portal with confidence thresholds, clinical annotations, and SQLite audit logging.
+- **Deterministic Candidate Identity**: Candidate IDs derive from the disease–drug pair, so rankings can change without breaking stored reviews, links, or dossier references.
+- **Fail-Closed Dossier Selection**: Dossier generation accepts candidate *or* drug IDs and returns HTTP 400 for unknown selections instead of silently emitting an empty dossier.
+- **Tamper-Evident Audit Persistence**: Hash-chained audit entries are written under a `BEGIN IMMEDIATE` lock and always verified against the persisted store, so cross-process writes and tampering are visible.
 - **Automated Dossier Generator**: Aggregates credibility scores, literature citations, and safety profiles into FDA Orphan Drug Designation draft packages.
 - **Benchmarked Disease Case Studies**: Curated walkthroughs for **Niemann-Pick Type C (Miglustat)** and **Cystic Fibrosis (Ivacaftor)**.
 - **Production-Ready Full-Stack**: FastAPI backend with async SQLAlchemy, Vite + React frontend with Tailwind CSS and Cytoscape.js.
@@ -293,7 +296,7 @@ Get OrphanRepurpose running locally in under 5 minutes.
    - **Terminal 2 (Frontend UI):**
      ```bash
      make dev-frontend
-     # Starts Vite on http://localhost:3000 (proxies /api requests to :8000)
+     # Starts Vite on http://localhost:3000 (proxies /api and /health requests to :8000)
      ```
 
 ### Running with Docker
@@ -342,7 +345,8 @@ make verify
 | **Knowledge Graph Browser** | `/kg` | Interactive Cytoscape network visualizer with physics layout, node filtering, multi-hop path search, and graph statistics. |
 | **Case Studies** | `/case-studies` | Validated benchmark walkthroughs for **Niemann-Pick Type C (Miglustat)** and **Cystic Fibrosis (Ivacaftor)**. |
 | **Clinician Validation** | `/validation` | Decision recording interface (Approve / Reject / Flag) with clinical notes and persistent SQLite audit trails. |
-| **Dossier Builder** | `/dossier` | One-click aggregation of regulatory evidence into an FDA Orphan Drug Designation draft with credibility metrics. |
+| **Dossier Builder** | `/dossier` | One-click aggregation of regulatory evidence into an FDA Orphan Drug Designation draft with credibility metrics. Candidate selection accepts either candidate IDs or drug IDs; unknown selections are rejected with HTTP 400. When the PDF renderer is unavailable the UI states this and JSON export remains available. |
+| **Audit Trail** | `/api/v1/audit` | Hash-chained, tamper-evident audit entries persisted in SQLite, verified against the stored chain on every read. `GET /sessions` lists all recorded sessions. |
 
 ---
 
@@ -373,7 +377,8 @@ make verify
 - [x] **Clinician Review & Audit Trail**: Interactive validation panel with SQLite-persisted audit trails.
 - [x] **Automated Dossier Generator**: FDA Orphan Drug Designation draft compilation.
 - [x] **Modern Asklepios Interface Redesign**: Frosted-glass design system, framed canvas architecture, Cytoscape graph visualizer, and slide-over navigation.
-- [x] **Code Quality & Testing**: 220 passing tests with 82.37% coverage; B904 exception chaining fixes; lint compliance.
+- [x] **Code Quality & Testing**: 252 passing tests with 82.18% coverage; B904 exception chaining fixes; lint compliance.
+- [x] **Data Integrity & Reliability Hardening**: Deterministic disease+drug candidate IDs, dossier candidate selection rejecting unknown IDs with HTTP 400, crash-safe audit trail persistence (`BEGIN IMMEDIATE` serialization, persisted-only verification), settings-driven database URL, complete wheel packaging, and same-origin API client default. Details in [docs/bug-hunt-report-2026-10-10.md](docs/bug-hunt-report-2026-10-10.md).
 - [ ] **Multi-Omics & Phenotype Expansion**: Integration of Orphanet HPO phenotypes and MONDO ontology cross-mappings.
 - [ ] **Cloud Deployment Blueprints**: Terraform & Helm templates for AWS, GCP, and HIPAA-compliant HPC environments.
 - [ ] **Open Benchmark Leaderboard**: Community benchmark platform for evaluating rare disease repurposing models.

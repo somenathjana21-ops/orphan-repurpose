@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Float, Integer, String
+from sqlalchemy import JSON, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
@@ -30,6 +30,17 @@ class CandidateModel(Base):
     llm_rationale: Mapped[str] = mapped_column(String, default="")
     session_id: Mapped[str] = mapped_column(String, default="")
     created_at: Mapped[str] = mapped_column(String, default=utcnow)
+
+
+class CandidateDetailsModel(Base):
+    """Complete candidate response, stored alongside legacy candidate rows."""
+
+    __tablename__ = "candidate_details"
+
+    candidate_id: Mapped[str] = mapped_column(
+        ForeignKey("candidates.id", ondelete="CASCADE"), primary_key=True
+    )
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
 
 
 class AuditEntryModel(Base):

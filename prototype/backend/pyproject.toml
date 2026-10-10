@@ -51,8 +51,8 @@ dev = [
 requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["app", "app.api", "app.api.v1", "app.core", "app.models", "app.services"]
+[tool.setuptools.packages.find]
+include = ["app", "app.*"]
 
 [tool.ruff]
 line-length = 100

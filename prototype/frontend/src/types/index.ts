@@ -57,6 +57,7 @@ export interface DiseaseSearchResponse {
 
 export interface Candidate {
   candidate_id: string
+  disease_id?: string | null
   drug_id: string
   drug_name: string
   indication_probability: number

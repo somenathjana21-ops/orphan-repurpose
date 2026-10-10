@@ -81,6 +81,7 @@ class KGPath(BaseModel):
 
 class Candidate(BaseModel):
     candidate_id: str
+    disease_id: Optional[str] = None
     drug_id: str
     drug_name: str
     indication_probability: float

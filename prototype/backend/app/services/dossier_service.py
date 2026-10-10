@@ -187,14 +187,14 @@ class DossierService:
         }
 
     def _html_to_pdf(self, html: str) -> bytes:
-        """Convert HTML to PDF using WeasyPrint."""
+        """Convert HTML to PDF, returning no PDF when the renderer is unavailable."""
         try:
             from weasyprint import HTML
 
             return HTML(string=html).write_pdf()
         except Exception as e:
             logger.error("pdf_generation_failed", error=str(e))
-            return html.encode("utf-8")
+            return b""
 
 
 _service: DossierService | None = None

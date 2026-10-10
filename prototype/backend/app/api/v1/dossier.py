@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import UTC, datetime
 
 import structlog
@@ -6,6 +8,7 @@ from jinja2 import Template
 
 from app.models.disease import (
     Candidate,
+    CandidateGenerateRequest,
     CredibilityMap,
     DiseaseDetail,
     DossierRequest,
@@ -481,78 +484,37 @@ def _get_mock_candidates(disease_id: str) -> list[Candidate]:
     return []
 
 
+def _select_candidates(candidates: list[Candidate], requested_ids: list[str]) -> list[Candidate]:
+    """Select candidates by candidate or drug ID and reject unknown selections."""
+    if not requested_ids:
+        return candidates
+    known_ids = {identifier for c in candidates for identifier in (c.candidate_id, c.drug_id)}
+    missing = set(requested_ids) - known_ids
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown candidates for this disease: {', '.join(sorted(missing))}",
+        )
+    return [c for c in candidates if c.candidate_id in requested_ids or c.drug_id in requested_ids]
+
+
 @router.post("/generate", response_model=DossierResponse)
 async def generate_dossier(request: DossierRequest):
     """Generate an Orphan Drug Designation dossier."""
     try:
         import uuid as uuid_mod
 
+        from app.api.v1.candidates import generate_candidates
+        from app.api.v1.diseases import get_disease
+        from app.services.dossier_service import get_dossier_service
+
         audit_trail_id = str(uuid_mod.uuid4())
-
-        # Try real data first
-        try:
-            from app.api.v1.diseases import _DISEASE_BY_ID, _to_detail
-            from app.services.dossier_service import get_dossier_service
-            from app.services.indication_service import get_indication_service
-
-            raw_disease = _DISEASE_BY_ID.get(request.disease_id)
-            if not raw_disease:
-                raise ValueError(f"Disease {request.disease_id} not in loaded diseases")
-            disease = _to_detail(raw_disease)
-
-            # Get real candidates from model
-            ind_svc = get_indication_service()
-            candidates = []
-            if ind_svc.is_ready():
-                scores = ind_svc.score_all_for_orpha(request.disease_id, top_k=20)
-                if not scores:
-                    for key in ind_svc.disease_map:
-                        if request.disease_id in key or disease.name in key:
-                            scores = ind_svc.score_drugs(key)[:20]
-                            break
-
-                if scores:
-                    from app.api.v1.candidates import _candidate_from_score
-
-                    candidates = [_candidate_from_score(i + 1, s) for i, s in enumerate(scores)]
-                    if request.candidate_ids:
-                        candidates = [
-                            c for c in candidates if c.candidate_id in request.candidate_ids
-                        ]
-
-            sections = request.include_sections or [
-                "background",
-                "drug_profile",
-                "mechanistic_rationale",
-                "preclinical_plan",
-                "regulatory_strategy",
-            ]
-
-            dossier_svc = get_dossier_service()
-            result = dossier_svc.generate_dossier(disease, candidates, sections, audit_trail_id)
-
-            logger.info(
-                "dossier_generated_from_model",
-                disease_id=request.disease_id,
-                n_candidates=len(candidates),
-            )
-            return DossierResponse(**result)
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.warning("real_data_dossier_failed_using_mock", error=str(e))
-
-        # Fallback to mock data
-        mock_disease = _get_mock_disease(request.disease_id)
-        if not mock_disease:
-            raise HTTPException(status_code=404, detail=f"Disease {request.disease_id} not found")
-        disease = mock_disease
-
-        candidates = _get_mock_candidates(request.disease_id)
-
-        if request.candidate_ids:
-            candidates = [c for c in candidates if c.candidate_id in request.candidate_ids]
+        disease = await get_disease(request.disease_id)
+        # Share disease mapping, stable IDs, and demo fallback with the candidate API.
+        generated = await generate_candidates(
+            CandidateGenerateRequest(disease_id=request.disease_id)
+        )
+        candidates = _select_candidates(generated.candidates, request.candidate_ids)
 
         sections = request.include_sections or [
             "background",
@@ -562,15 +524,13 @@ async def generate_dossier(request: DossierRequest):
             "regulatory_strategy",
         ]
 
-        # Use DossierService for consistency
-        from app.services.dossier_service import get_dossier_service
-
         dossier_svc = get_dossier_service()
         result = dossier_svc.generate_dossier(disease, candidates, sections, audit_trail_id)
 
         logger.info(
-            "dossier_generated_from_mock",
+            "dossier_generated",
             disease_id=request.disease_id,
+            n_candidates=len(candidates),
             audit_trail_id=audit_trail_id,
         )
 

@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
+from app.core.config import settings
+
 # Database URL - SQLite for prototype
 # Use absolute path relative to the backend directory (prototype/backend/)
 _backend_dir = Path(__file__).resolve().parent.parent.parent
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", f"sqlite+aiosqlite:///{_backend_dir}/data/orphan_repurpose.db"
-)
+DATABASE_URL = settings.DATABASE_URL
 
 # Ensure data directory exists
 _data_dir = _backend_dir / "data"

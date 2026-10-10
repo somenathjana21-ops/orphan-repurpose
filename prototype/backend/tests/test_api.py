@@ -1517,7 +1517,7 @@ class TestDossierEndpointsFinalCoverage:
             "candidate_ids": ["cand_001"],
             "include_sections": ["background"]
         })
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code == 404
         
         # Test with non-existent candidate
         response = await async_client.post("/api/v1/dossier/generate", json={
@@ -1525,7 +1525,7 @@ class TestDossierEndpointsFinalCoverage:
             "candidate_ids": ["nonexistent_candidate"],
             "include_sections": ["background"]
         })
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code == 400
 
 
 class TestKGEndpointsFinalCoverage:

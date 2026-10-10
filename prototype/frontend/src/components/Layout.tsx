@@ -2,6 +2,7 @@ import { ReactNode, useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Navbar } from './Navbar'
 import { MainMenuDrawer } from './MainMenuDrawer'
+import { api } from '../services/api'
 
 export function Layout({ children }: { children?: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -9,9 +10,13 @@ export function Layout({ children }: { children?: ReactNode }) {
 
   useEffect(() => {
     // Quick health probe to show connection status
-    fetch('/health')
-      .then((res) => (res.ok ? setBackendOnline(true) : setBackendOnline(false)))
-      .catch(() => setBackendOnline(false))
+    const controller = new AbortController()
+    api.get<{ status: string }>('/health', { signal: controller.signal })
+      .then(({ data }) => setBackendOnline(data.status === 'healthy'))
+      .catch(() => {
+        if (!controller.signal.aborted) setBackendOnline(false)
+      })
+    return () => controller.abort()
   }, [])
 
   return (

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import structlog
 from fastapi import APIRouter, HTTPException
 
@@ -6,6 +8,17 @@ from app.services.audit_service import get_audit_service
 
 logger = structlog.get_logger()
 router = APIRouter()
+
+
+@router.get("/sessions")
+async def list_sessions() -> dict[str, list[str]]:
+    """List all audit session IDs."""
+    try:
+        svc = get_audit_service()
+        return {"sessions": await svc.get_all_sessions()}
+    except Exception as e:
+        logger.error("audit_list_sessions_failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to list sessions") from e
 
 
 @router.get("/{session_id}", response_model=AuditTrail)
@@ -49,19 +62,8 @@ async def log_event(session_id: str, entry_type: str, user: str, data: dict):
     """Log an event to the audit trail."""
     try:
         svc = get_audit_service()
-        entry = svc.add_entry(session_id, entry_type, user, data)
+        entry = await svc.add_entry(session_id, entry_type, user, data)
         return {"session_id": session_id, "entry": entry}
     except Exception as e:
         logger.error("audit_log_failed", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to log event") from e
-
-
-@router.get("/sessions")
-async def list_sessions():
-    """List all audit session IDs."""
-    try:
-        svc = get_audit_service()
-        return {"sessions": svc.get_all_sessions()}
-    except Exception as e:
-        logger.error("audit_list_sessions_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to list sessions") from e
