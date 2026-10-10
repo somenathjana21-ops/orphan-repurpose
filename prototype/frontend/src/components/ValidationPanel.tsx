@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { candidatesApi, validationApi } from '../services/api'
+import { CheckCircle2, Sliders, ShieldCheck } from 'lucide-react'
 
 interface ValidationPanelProps {
   candidateId: string
@@ -9,9 +10,9 @@ interface ValidationPanelProps {
 type Assessment = 'plausible' | 'needs_data' | 'unlikely'
 
 const ASSESSMENT_LABELS: Record<Assessment, { label: string; color: string }> = {
-  plausible: { label: 'Plausible', color: 'bg-green-100 text-green-800 border-green-300' },
-  needs_data: { label: 'Needs More Data', color: 'bg-amber-100 text-amber-800 border-amber-300' },
-  unlikely: { label: 'Unlikely', color: 'bg-red-100 text-red-800 border-red-300' },
+  plausible: { label: 'Plausible', color: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
+  needs_data: { label: 'Needs More Data', color: 'bg-amber-50 text-amber-800 border-amber-300' },
+  unlikely: { label: 'Unlikely', color: 'bg-rose-50 text-rose-800 border-rose-300' },
 }
 
 export function ValidationPanel({ candidateId }: ValidationPanelProps) {
@@ -60,48 +61,52 @@ export function ValidationPanel({ candidateId }: ValidationPanelProps) {
   })
 
   return (
-    <div className="space-y-4">
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
+    <div className="space-y-5">
+      {/* Modern Segmented Pill Tabs */}
+      <div className="flex p-1 bg-slate-100 rounded-2xl w-fit">
         {(['validate', 'assess', 'audit'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
               activeTab === tab
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            {tab === 'validate' ? 'Expert Validation' : tab === 'assess' ? 'Self-Assessment' : 'Audit Trail'}
+            {tab === 'validate'
+              ? 'Expert Validation'
+              : tab === 'assess'
+              ? 'Clinician Scoring'
+              : 'Audit Trail'}
           </button>
         ))}
       </div>
 
-      {/* Expert Validation */}
+      {/* Expert Validation Tab */}
       {activeTab === 'validate' && (
-        <div className="space-y-4">
+        <div className="space-y-4 max-w-xl">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Validator Name</label>
+            <label className="label">Validator Name / Affiliation</label>
             <input
               type="text"
               value={validator}
               onChange={(e) => setValidator(e.target.value)}
-              placeholder="Dr. Smith"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Dr. S. Chen (Principal Investigator)"
+              className="input"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Assessment</label>
-            <div className="flex gap-2">
+            <label className="label">Plausibility Assessment</label>
+            <div className="flex flex-wrap gap-2">
               {(Object.keys(ASSESSMENT_LABELS) as Assessment[]).map((a) => (
                 <button
                   key={a}
                   onClick={() => setAssessment(a)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
+                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition-all ${
                     assessment === a
                       ? ASSESSMENT_LABELS[a].color
-                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                      : 'bg-white text-slate-600 border-slate-200/80 hover:bg-slate-50'
                   }`}
                 >
                   {ASSESSMENT_LABELS[a].label}
@@ -110,44 +115,51 @@ export function ValidationPanel({ candidateId }: ValidationPanelProps) {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Rationale</label>
+            <label className="label">Biological & Clinical Rationale</label>
             <textarea
               value={rationale}
               onChange={(e) => setRationale(e.target.value)}
-              placeholder="Explain your assessment..."
+              placeholder="Explain mechanistic plausibility, phenotypic overlap, or safety considerations..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="input"
             />
           </div>
           <button
             onClick={() => validateMutation.mutate()}
             disabled={validateMutation.isPending}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-cobalt text-xs py-2.5 px-5 rounded-xl font-semibold"
           >
-            {validateMutation.isPending ? 'Submitting...' : 'Submit Validation'}
+            {validateMutation.isPending ? 'Logging review...' : 'Submit Expert Validation'}
           </button>
           {validateMutation.isSuccess && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm text-green-800">
-                Validation recorded. Session ID: <code className="text-xs">{validateMutation.data.session_id.slice(0, 8)}...</code>
+            <div className="p-3.5 bg-emerald-50 border border-emerald-200/70 rounded-2xl flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <p className="text-xs text-emerald-900">
+                Validation recorded securely. Session ID:{' '}
+                <code className="font-mono font-bold">{validateMutation.data.session_id.slice(0, 8)}...</code>
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* Self-Assessment */}
+      {/* Self-Assessment Scoring Tab */}
       {activeTab === 'assess' && (
-        <div className="space-y-4">
+        <div className="space-y-4 max-w-xl">
           {[
-            { label: 'Efficacy', value: efficacy, set: setEfficacy },
-            { label: 'Safety', value: safety, set: setSafety },
-            { label: 'Feasibility', value: feasibility, set: setFeasibility },
+            { label: 'Efficacy Probability', value: efficacy, set: setEfficacy },
+            { label: 'Safety & Tolerability Profile', value: safety, set: setSafety },
+            { label: 'Translational Feasibility', value: feasibility, set: setFeasibility },
           ].map(({ label, value, set }) => (
-            <div key={label}>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium text-gray-700">{label}</label>
-                <span className="text-sm font-mono text-gray-500">{value}/10</span>
+            <div key={label} className="p-3.5 bg-slate-50/70 border border-slate-200/60 rounded-2xl space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Sliders className="h-3 w-3 text-blue-600" />
+                  {label}
+                </label>
+                <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                  {value}/10
+                </span>
               </div>
               <input
                 type="range"
@@ -155,82 +167,88 @@ export function ValidationPanel({ candidateId }: ValidationPanelProps) {
                 max={10}
                 value={value}
                 onChange={(e) => set(Number(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
             </div>
           ))}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <label className="label">Evaluation Notes</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Additional observations..."
+              placeholder="Additional observational notes..."
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="input"
             />
           </div>
           <button
             onClick={() => assessMutation.mutate()}
             disabled={assessMutation.isPending}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-cobalt text-xs py-2.5 px-5 rounded-xl font-semibold"
           >
-            {assessMutation.isPending ? 'Submitting...' : 'Submit Self-Assessment'}
+            {assessMutation.isPending ? 'Logging score...' : 'Submit Clinician Scoring'}
           </button>
           {assessMutation.isSuccess && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm text-green-800">
-                Self-assessment recorded. Session ID: <code className="text-xs">{assessMutation.data.session_id.slice(0, 8)}...</code>
+            <div className="p-3.5 bg-emerald-50 border border-emerald-200/70 rounded-2xl flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <p className="text-xs text-emerald-900">
+                Score recorded. Session ID:{' '}
+                <code className="font-mono font-bold">{assessMutation.data.session_id.slice(0, 8)}...</code>
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* Audit Trail */}
+      {/* Audit Trail Tab */}
       {activeTab === 'audit' && (
         <div className="space-y-3">
           {!sessionId ? (
-            <p className="text-sm text-gray-500 p-4 bg-gray-50 rounded-lg">
-              Submit a validation or self-assessment to see the audit trail.
+            <p className="text-xs text-slate-500 p-4 bg-slate-50 rounded-2xl border border-slate-200/60">
+              Submit a validation or scoring entry to review the cryptographically hashed audit trail.
             </p>
           ) : auditLoading ? (
-            <p className="text-sm text-gray-500">Loading audit trail...</p>
+            <p className="text-xs text-slate-400">Loading audit trail...</p>
           ) : auditTrail ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium text-gray-800">Audit Trail</p>
-                  <p className="text-xs text-gray-500">{auditTrail.entries.length} entries</p>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-purple-600" />
+                  <span className="text-xs font-bold text-slate-900">
+                    Audit Log · {auditTrail.entries.length} Entries
+                  </span>
                 </div>
-                <span className="text-xs font-mono text-gray-400">{auditTrail.session_id.slice(0, 8)}...</span>
+                <span className="text-[11px] font-mono text-slate-400">
+                  ID: {auditTrail.session_id.slice(0, 8)}...
+                </span>
               </div>
               {auditTrail.entries.map((entry, i) => (
-                <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-gray-500">
+                <div key={i} className="p-3.5 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400 font-mono">
                       {new Date(entry.timestamp).toLocaleString()}
                     </span>
                     <span
-                      className={`text-xs px-2 py-0.5 rounded ${
+                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                         entry.type === 'validation'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-purple-100 text-purple-800'
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : 'bg-purple-50 text-purple-700 border border-purple-200'
                       }`}
                     >
                       {entry.type}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-700">
+                  <p className="text-xs text-slate-800">
                     <strong>{entry.user}</strong>: {JSON.stringify(entry.data)}
                   </p>
-                  <p className="text-xs font-mono text-gray-400 mt-1 truncate">
-                    Hash: {entry.hash.slice(0, 16)}...
+                  <p className="text-[10px] font-mono text-slate-400 truncate">
+                    Hash: {entry.hash.slice(0, 24)}...
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-500">No audit trail found.</p>
+            <p className="text-xs text-slate-500">No audit trail found.</p>
           )}
         </div>
       )}

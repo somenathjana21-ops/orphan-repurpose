@@ -1,4 +1,5 @@
 import type { Explanation, KGPath } from '../types'
+import { Network, BarChart3, RotateCcw, Sparkles } from 'lucide-react'
 
 interface ExplanationPanelProps {
   explanation: Explanation
@@ -8,44 +9,44 @@ interface ExplanationPanelProps {
 function Skeleton() {
   return (
     <div className="animate-pulse space-y-4">
-      <div className="h-4 bg-gray-200 rounded w-1/4" />
-      <div className="h-20 bg-gray-200 rounded" />
-      <div className="h-4 bg-gray-200 rounded w-1/3" />
-      <div className="h-16 bg-gray-200 rounded" />
+      <div className="h-4 bg-slate-200 rounded-lg w-1/4" />
+      <div className="h-20 bg-slate-100 rounded-2xl" />
+      <div className="h-4 bg-slate-200 rounded-lg w-1/3" />
+      <div className="h-16 bg-slate-100 rounded-2xl" />
     </div>
   )
 }
 
 function KGPathCard({ path, index }: { path: KGPath; index: number }) {
   return (
-    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-blue-900">
+    <div className="p-4 bg-white/90 border border-slate-200/80 rounded-2xl shadow-xs hover:border-blue-300 transition-all">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
           Path {index + 1}
-        </h3>
-        <span className="text-xs font-mono text-blue-700 bg-blue-100 px-2 py-0.5 rounded">
+        </h4>
+        <span className="text-[11px] font-mono font-semibold text-blue-700 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-full">
           Score: {path.score.toFixed(3)}
         </span>
       </div>
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1.5">
         {path.nodes.map((node, nodeIndex) => (
-          <span key={nodeIndex} className="flex items-center gap-1">
-            <span className="bg-white border border-blue-300 px-2 py-0.5 text-xs rounded shadow-sm">
-              <span className="font-medium text-blue-800">{node.name}</span>
-              <span className="text-blue-400 ml-1">({node.type})</span>
+          <span key={nodeIndex} className="flex items-center gap-1.5">
+            <span className="bg-slate-50 border border-slate-200/80 px-2.5 py-1 text-xs rounded-xl shadow-2xs">
+              <span className="font-semibold text-slate-900">{node.name}</span>
+              <span className="text-slate-400 text-[11px] ml-1">({node.type})</span>
             </span>
             {nodeIndex < path.nodes.length - 1 && (
-              <span className="text-blue-400 font-bold">→</span>
+              <span className="text-blue-500 font-bold text-sm">→</span>
             )}
           </span>
         ))}
       </div>
       {path.edges.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
           {path.edges.map((edge, edgeIndex) => (
             <span
               key={edgeIndex}
-              className="text-xs text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded"
+              className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md"
             >
               {edge.type}
             </span>
@@ -58,29 +59,30 @@ function KGPathCard({ path, index }: { path: KGPath; index: number }) {
 
 function SHAPBar({ feature, value }: { feature: string; value: number }) {
   const maxVal = 0.5
-  const width = Math.min(Math.abs(value) / maxVal * 100, 100)
+  const width = Math.min((Math.abs(value) / maxVal) * 100, 100)
   const isPositive = value > 0
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-600 w-32 truncate font-mono" title={feature}>
+    <div className="flex items-center gap-3">
+      <span className="text-xs text-slate-600 w-36 truncate font-mono" title={feature}>
         {feature}
       </span>
-      <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden relative">
-        <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300" />
+      <div className="flex-1 h-3.5 bg-slate-100 rounded-full overflow-hidden relative">
+        <div className="absolute inset-y-0 left-1/2 w-px bg-slate-300" />
         <div
           className={`absolute inset-y-0 rounded-full transition-all ${
-            isPositive ? 'bg-green-500 left-1/2' : 'bg-red-500 right-1/2'
+            isPositive ? 'bg-blue-600 left-1/2' : 'bg-rose-500 right-1/2'
           }`}
           style={{ width: `${width / 2}%` }}
         />
       </div>
       <span
-        className={`text-xs font-mono w-16 text-right ${
-          isPositive ? 'text-green-700' : 'text-red-700'
+        className={`text-xs font-mono w-16 text-right font-semibold ${
+          isPositive ? 'text-blue-600' : 'text-rose-600'
         }`}
       >
-        {value >= 0 ? '+' : ''}{value.toFixed(4)}
+        {value >= 0 ? '+' : ''}
+        {value.toFixed(4)}
       </span>
     </div>
   )
@@ -96,22 +98,23 @@ function CounterfactualCard({
   description: string
 }) {
   return (
-    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-xs font-mono bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
+    <div className="p-4 bg-amber-50/50 border border-amber-200/70 rounded-2xl">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-xs font-mono bg-white text-slate-700 px-2 py-0.5 rounded-lg border border-amber-200 font-semibold">
           {removedEdge}
         </span>
         <span
-          className={`text-xs font-bold px-2 py-0.5 rounded ${
+          className={`text-xs font-bold px-2 py-0.5 rounded-full ${
             probabilityDelta < 0
-              ? 'bg-red-100 text-red-800'
-              : 'bg-green-100 text-green-800'
+              ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
+              : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
           }`}
         >
-          {probabilityDelta >= 0 ? '+' : ''}{probabilityDelta.toFixed(3)}
+          {probabilityDelta >= 0 ? '+' : ''}
+          {probabilityDelta.toFixed(3)}
         </span>
       </div>
-      <p className="text-sm text-gray-700">{description}</p>
+      <p className="text-xs text-slate-700 leading-relaxed">{description}</p>
     </div>
   )
 }
@@ -123,7 +126,7 @@ export function ExplanationPanel({ explanation, isLoading }: ExplanationPanelPro
 
   if (!explanation) {
     return (
-      <div className="p-4 bg-gray-50 rounded-lg text-gray-500 text-sm">
+      <div className="p-4 bg-slate-50 rounded-2xl text-slate-500 text-xs">
         No explanation available.
       </div>
     )
@@ -138,12 +141,12 @@ export function ExplanationPanel({ explanation, isLoading }: ExplanationPanelPro
     <div className="space-y-6">
       {/* Knowledge Graph Paths */}
       {hasKGPaths && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <span className="text-blue-600">🔗</span>
-            Knowledge Graph Paths
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+            <Network className="h-3.5 w-3.5 text-blue-600" />
+            Biological Relation Paths
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {explanation.kg_paths.map((path, index) => (
               <KGPathCard key={index} path={path} index={index} />
             ))}
@@ -153,20 +156,22 @@ export function ExplanationPanel({ explanation, isLoading }: ExplanationPanelPro
 
       {/* SHAP Values */}
       {hasSHAP && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <span className="text-purple-600">📊</span>
-            Feature Importance (SHAP)
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+            <BarChart3 className="h-3.5 w-3.5 text-blue-600" />
+            Feature Attribution Importance (SHAP)
           </h3>
-          <div className="space-y-1.5 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+          <div className="space-y-2 p-4 bg-white/90 border border-slate-200/80 rounded-2xl shadow-xs">
             {Object.entries(explanation.shap_values).map(([feature, value]) => (
               <SHAPBar key={feature} feature={feature} value={value} />
             ))}
-            <div className="flex items-center gap-2 mt-3 pt-2 border-t border-purple-200">
-              <span className="text-xs text-green-700 font-medium">+</span>
-              <span className="text-xs text-gray-500">Supports prediction</span>
-              <span className="text-xs text-red-700 font-medium ml-4">-</span>
-              <span className="text-xs text-gray-500">Against prediction</span>
+            <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
+              <span className="flex items-center gap-1 font-semibold text-blue-600">
+                <span className="h-2 w-2 rounded-full bg-blue-600" /> Positive (Supports)
+              </span>
+              <span className="flex items-center gap-1 font-semibold text-rose-600">
+                <span className="h-2 w-2 rounded-full bg-rose-500" /> Negative (Against)
+              </span>
             </div>
           </div>
         </div>
@@ -174,12 +179,12 @@ export function ExplanationPanel({ explanation, isLoading }: ExplanationPanelPro
 
       {/* Counterfactuals */}
       {hasCF && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <span className="text-amber-600">🔄</span>
-            Counterfactual Explanations
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+            <RotateCcw className="h-3.5 w-3.5 text-amber-600" />
+            Counterfactual Perturbations
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {explanation.counterfactuals.map((cf, index) => (
               <CounterfactualCard
                 key={index}
@@ -194,13 +199,13 @@ export function ExplanationPanel({ explanation, isLoading }: ExplanationPanelPro
 
       {/* LLM Rationale */}
       {hasLLM && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <span className="text-emerald-600">🧠</span>
-            AI Rationale
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+            <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+            BioMistral Mechanistic Synthesis
           </h3>
-          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+          <div className="p-4 bg-blue-50/40 border border-blue-200/60 rounded-2xl">
+            <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">
               {explanation.llm_rationale}
             </p>
           </div>
@@ -208,7 +213,7 @@ export function ExplanationPanel({ explanation, isLoading }: ExplanationPanelPro
       )}
 
       {!hasKGPaths && !hasSHAP && !hasCF && !hasLLM && (
-        <div className="p-4 bg-gray-50 rounded-lg text-gray-500 text-sm">
+        <div className="p-4 bg-slate-50 rounded-2xl text-slate-500 text-xs">
           No explanation data available for this candidate.
         </div>
       )}
