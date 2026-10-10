@@ -5,16 +5,15 @@ Turns SMILES strings into PyG-style (atom_features, edge_index) pairs using
 RDKit. Falls back to a deterministic hash-based featurizer when RDKit is
 unavailable or a SMILES fails to parse, so the pipeline never hard-fails.
 """
+
 from __future__ import annotations
 
 import hashlib
-from typing import List, Tuple
 
 import torch
 
 try:  # RDKit is optional at import time
     from rdkit import Chem
-    from rdkit.Chem import rdMolDescriptors
 
     RDKIT_AVAILABLE = True
 except Exception:  # pragma: no cover
@@ -30,7 +29,7 @@ _BOND_TYPES = [
 ]
 
 
-def _one_hot(value, choices) -> List[float]:
+def _one_hot(value, choices) -> list[float]:
     vec = [0.0] * len(choices)
     try:
         idx = choices.index(value)
@@ -40,16 +39,30 @@ def _one_hot(value, choices) -> List[float]:
     return vec
 
 
-def atom_features(atom) -> List[float]:
+def atom_features(atom) -> list[float]:
     """78-dim atom feature vector (mirrors the spec in docs/06)."""
     if not RDKIT_AVAILABLE or atom is None:
         return [0.0] * ATOM_FEATURE_DIM
 
-    feats: List[float] = []
+    feats: list[float] = []
     # element (one-hot over common elements, 16 slots)
     common = [
-        "C", "N", "O", "S", "F", "Cl", "Br", "I", "P", "B",
-        "Si", "Se", "Na", "K", "Ca", "Mg",
+        "C",
+        "N",
+        "O",
+        "S",
+        "F",
+        "Cl",
+        "Br",
+        "I",
+        "P",
+        "B",
+        "Si",
+        "Se",
+        "Na",
+        "K",
+        "Ca",
+        "Mg",
     ]
     feats += _one_hot(atom.GetSymbol(), common)
     feats += [float(atom.GetAtomicNum()) / 100.0]
@@ -89,7 +102,7 @@ def atom_features(atom) -> List[float]:
     return feats
 
 
-def _hash_features(smiles: str, max_atoms: int = 16) -> Tuple[torch.Tensor, torch.Tensor]:
+def _hash_features(smiles: str, max_atoms: int = 16) -> tuple[torch.Tensor, torch.Tensor]:
     """Deterministic fallback: derive a small graph from a SMILES hash."""
     digest = hashlib.sha256(smiles.encode()).digest()
     n_atoms = 4 + (digest[0] % (max_atoms - 3))
@@ -105,7 +118,7 @@ def _hash_features(smiles: str, max_atoms: int = 16) -> Tuple[torch.Tensor, torc
     return feats, edge_index
 
 
-def smiles_to_graph(smiles: str) -> Tuple[torch.Tensor, torch.Tensor]:
+def smiles_to_graph(smiles: str) -> tuple[torch.Tensor, torch.Tensor]:
     """Return (atom_features [N,78], edge_index [2,E]) for a SMILES string."""
     if not smiles:
         return _hash_features("")
@@ -132,7 +145,7 @@ def smiles_to_graph(smiles: str) -> Tuple[torch.Tensor, torch.Tensor]:
     return feats, edge_index
 
 
-def batch_graphs(graphs: List[Tuple[torch.Tensor, torch.Tensor]]):
+def batch_graphs(graphs: list[tuple[torch.Tensor, torch.Tensor]]):
     """Concatenate molecular graphs into a single disconnected batch."""
     atom_feats = []
     edge_indices = []
@@ -153,9 +166,7 @@ def batch_graphs(graphs: List[Tuple[torch.Tensor, torch.Tensor]]):
         )
     all_feats = torch.cat(atom_feats, dim=0)
     all_edges = (
-        torch.cat(edge_indices, dim=1)
-        if edge_indices
-        else torch.zeros(2, 0, dtype=torch.long)
+        torch.cat(edge_indices, dim=1) if edge_indices else torch.zeros(2, 0, dtype=torch.long)
     )
     all_batch = torch.cat(batch_vec, dim=0)
     return all_feats, all_edges, all_batch

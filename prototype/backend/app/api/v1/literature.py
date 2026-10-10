@@ -1,10 +1,10 @@
-from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional, Dict, Any
-import structlog
-import httpx
 import hashlib
 import re
-from app.models.disease import DiseaseDetail
+from typing import Any
+
+import httpx
+import structlog
+from fastapi import APIRouter, HTTPException, Query
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -16,14 +16,14 @@ HTTP_TIMEOUT = 10.0
 FALLBACK_PMIDS = ["33567210", "28765320", "31006543", "25677008", "36198754"]
 
 # Simple in-memory cache: key -> (timestamp, data)
-_cache: Dict[str, Any] = {}
+_cache: dict[str, Any] = {}
 
 
 def _cache_key(*parts: str) -> str:
     return hashlib.md5("|".join(parts).encode()).hexdigest()
 
 
-def _get_cached(key: str) -> Optional[Any]:
+def _get_cached(key: str) -> Any | None:
     return _cache.get(key)
 
 
@@ -31,7 +31,7 @@ def _set_cached(key: str, value: Any) -> None:
     _cache[key] = value
 
 
-async def _esearch(query: str, retmax: int) -> List[str]:
+async def _esearch(query: str, retmax: int) -> list[str]:
     """Search PubMed and return a list of PMIDs."""
     params = {
         "db": "pubmed",
@@ -46,7 +46,7 @@ async def _esearch(query: str, retmax: int) -> List[str]:
         return data.get("esearchresult", {}).get("idlist", [])
 
 
-async def _esummary(pmids: List[str]) -> List[Dict[str, Any]]:
+async def _esummary(pmids: list[str]) -> list[dict[str, Any]]:
     """Fetch summaries for a list of PMIDs."""
     if not pmids:
         return []
@@ -65,11 +65,7 @@ async def _esummary(pmids: List[str]) -> List[Dict[str, Any]]:
         for uid in uids:
             item = result.get(uid, {})
             # Extract authors
-            authors = [
-                a.get("name", "")
-                for a in item.get("authors", [])
-                if a.get("name")
-            ]
+            authors = [a.get("name", "") for a in item.get("authors", []) if a.get("name")]
             # Parse year from pubdate
             pubdate = item.get("pubdate", "")
             year = ""
@@ -79,21 +75,23 @@ async def _esummary(pmids: List[str]) -> List[Dict[str, Any]]:
                     year = match.group(0)
             # Build abstract from elocation or title (esummary may not have abstract)
             abstract = item.get("abstract", item.get("title", ""))
-            publications.append({
-                "pmid": uid,
-                "title": item.get("title", ""),
-                "journal": item.get("fulljournalname", item.get("source", "")),
-                "year": year,
-                "authors": authors,
-                "abstract": abstract,
-                "doi": item.get("elocationid", ""),
-                "url": f"https://pubmed.ncbi.nlm.nih.gov/{uid}/",
-                "relevance_score": 0.0,  # Will be set by search ranking
-            })
+            publications.append(
+                {
+                    "pmid": uid,
+                    "title": item.get("title", ""),
+                    "journal": item.get("fulljournalname", item.get("source", "")),
+                    "year": year,
+                    "authors": authors,
+                    "abstract": abstract,
+                    "doi": item.get("elocationid", ""),
+                    "url": f"https://pubmed.ncbi.nlm.nih.gov/{uid}/",
+                    "relevance_score": 0.0,  # Will be set by search ranking
+                }
+            )
         return publications
 
 
-async def _efetch_abstracts(pmids: List[str]) -> Dict[str, str]:
+async def _efetch_abstracts(pmids: list[str]) -> dict[str, str]:
     """Fetch raw abstracts from efetch for a list of PMIDs."""
     if not pmids:
         return {}
@@ -109,9 +107,9 @@ async def _efetch_abstracts(pmids: List[str]) -> Dict[str, str]:
         text = resp.text
         # Parse blocks separated by blank lines
         # Each record starts with a PMID line
-        abstracts: Dict[str, str] = {}
-        current_pmid: Optional[str] = None
-        current_lines: List[str] = []
+        abstracts: dict[str, str] = {}
+        current_pmid: str | None = None
+        current_lines: list[str] = []
 
         for line in text.split("\n"):
             line = line.strip()
@@ -200,11 +198,11 @@ async def search_literature(
 
     except Exception as e:
         logger.error("literature_search_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Literature search failed")
+        raise HTTPException(status_code=500, detail="Literature search failed") from e
 
 
 @router.post("/summarize")
-async def summarize_literature(pmids: List[str]):
+async def summarize_literature(pmids: list[str]):
     """Fetch abstracts and generate extractive summaries for given PMIDs."""
     try:
         ck = _cache_key("summarize", ",".join(sorted(pmids)))
@@ -238,14 +236,16 @@ async def summarize_literature(pmids: List[str]):
                 title = meta.get("title", f"Publication {pmid}")
                 summary_text = f"Title: {title}. Abstract could not be retrieved from PubMed."
 
-            results.append({
-                "pmid": pmid,
-                "title": meta.get("title", f"Publication {pmid}"),
-                "journal": meta.get("journal", ""),
-                "year": meta.get("year", ""),
-                "summary": summary_text,
-                "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
-            })
+            results.append(
+                {
+                    "pmid": pmid,
+                    "title": meta.get("title", f"Publication {pmid}"),
+                    "journal": meta.get("journal", ""),
+                    "year": meta.get("year", ""),
+                    "summary": summary_text,
+                    "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
+                }
+            )
 
         output = {"summaries": results}
         _set_cached(ck, output)
@@ -253,4 +253,4 @@ async def summarize_literature(pmids: List[str]):
 
     except Exception as e:
         logger.error("literature_summarize_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Literature summarization failed")
+        raise HTTPException(status_code=500, detail="Literature summarization failed") from e

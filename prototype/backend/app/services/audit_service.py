@@ -5,16 +5,16 @@ Provides tamper-evident audit trail for all validation and
 self-assessment events. Uses SHA-256 hash chaining.
 Persisted to SQLite for durability across restarts.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
-import structlog
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
+from datetime import UTC, datetime
+from typing import Any
 
+import structlog
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import async_session_factory
 from app.db.models import AuditEntryModel
@@ -27,7 +27,7 @@ class AuditService:
     """Immutable audit log with hash chaining, persisted to SQLite."""
 
     def __init__(self):
-        self._cache: Dict[str, List[AuditEntry]] = {}
+        self._cache: dict[str, list[AuditEntry]] = {}
 
     @staticmethod
     def _compute_hash(entry: AuditEntry, previous_hash: str = "") -> str:
@@ -50,6 +50,7 @@ class AuditService:
     ) -> AuditEntry:
         """Add an entry to the audit log with hash chaining, persisted to SQLite."""
         from app.db.database import _ensure_tables
+
         await _ensure_tables()
         async with async_session_factory() as db:
             # Get previous hash from DB
@@ -63,7 +64,7 @@ class AuditService:
             previous_hash = prev_entry.hash if prev_entry else ""
 
             entry = AuditEntry(
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
                 type=entry_type,
                 user=user,
                 data=data,
@@ -92,7 +93,7 @@ class AuditService:
             logger.info("audit_entry_added", session_id=session_id, type=entry_type, user=user)
             return entry
 
-    async def get_trail(self, session_id: str) -> Optional[AuditTrail]:
+    async def get_trail(self, session_id: str) -> AuditTrail | None:
         """Get audit trail for a session from SQLite."""
         # Check cache first
         if session_id in self._cache:
@@ -123,7 +124,7 @@ class AuditService:
             self._cache[session_id] = entries
             return AuditTrail(session_id=session_id, entries=entries)
 
-    async def verify(self, session_id: str) -> Dict[str, Any]:
+    async def verify(self, session_id: str) -> dict[str, Any]:
         """Verify the integrity of an audit trail."""
         trail = await self.get_trail(session_id)
         if trail is None:
@@ -149,12 +150,10 @@ class AuditService:
             "message": "Audit trail integrity verified",
         }
 
-    async def get_all_sessions(self) -> List[str]:
+    async def get_all_sessions(self) -> list[str]:
         """Get all session IDs from SQLite."""
         async with async_session_factory() as db:
-            result = await db.execute(
-                select(AuditEntryModel.session_id).distinct()
-            )
+            result = await db.execute(select(AuditEntryModel.session_id).distinct())
             return [row[0] for row in result]
 
     def clear(self):
@@ -163,7 +162,7 @@ class AuditService:
         logger.warning("audit_log_cache_cleared")
 
 
-_service: Optional[AuditService] = None
+_service: AuditService | None = None
 
 
 def get_audit_service() -> AuditService:

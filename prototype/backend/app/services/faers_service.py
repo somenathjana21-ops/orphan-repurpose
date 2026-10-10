@@ -4,10 +4,11 @@ FAERS data service.
 Fetches real FAERS data from the openFDA API with in-memory caching
 and a built-in fallback dataset for when the API is unavailable.
 """
+
 from __future__ import annotations
 
 import time
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any
 
 import httpx
 import structlog
@@ -20,26 +21,67 @@ OPENFDA_BASE_URL = "https://api.fda.gov/drug/event.json"
 
 # Built-in fallback dataset: realistic contingency table counts (a, b, c, d)
 # for common drugs when the openFDA API is unavailable.
-BUILTIN_FAERS_DATA: Dict[str, List[Dict[str, Any]]] = {
-
+BUILTIN_FAERS_DATA: dict[str, list[dict[str, Any]]] = {
     "miglustat": [
         {"event": "Diarrhea", "meddra_pt": "Diarrhea", "a": 45, "b": 120, "c": 800, "d": 50000},
         {"event": "Nausea", "meddra_pt": "Nausea", "a": 30, "b": 135, "c": 600, "d": 50200},
     ],
     "sirolimus": [
-        {"event": "Hyperlipidemia", "meddra_pt": "Hyperlipidemia", "a": 120, "b": 300, "c": 2000, "d": 48000},
-        {"event": "Stomatitis", "meddra_pt": "Stomatitis", "a": 200, "b": 220, "c": 1500, "d": 48500},
+        {
+            "event": "Hyperlipidemia",
+            "meddra_pt": "Hyperlipidemia",
+            "a": 120,
+            "b": 300,
+            "c": 2000,
+            "d": 48000,
+        },
+        {
+            "event": "Stomatitis",
+            "meddra_pt": "Stomatitis",
+            "a": 200,
+            "b": 220,
+            "c": 1500,
+            "d": 48500,
+        },
     ],
     "ivacaftor": [
-        {"event": "Hepatic enzyme increased", "meddra_pt": "Hepatic enzyme increased", "a": 60, "b": 200, "c": 1000, "d": 49000},
+        {
+            "event": "Hepatic enzyme increased",
+            "meddra_pt": "Hepatic enzyme increased",
+            "a": 60,
+            "b": 200,
+            "c": 1000,
+            "d": 49000,
+        },
         {"event": "Headache", "meddra_pt": "Headache", "a": 80, "b": 180, "c": 3000, "d": 47000},
     ],
     "everolimus": [
-        {"event": "Stomatitis", "meddra_pt": "Stomatitis", "a": 210, "b": 180, "c": 1500, "d": 48400},
-        {"event": "Hyperlipidemia", "meddra_pt": "Hyperlipidemia", "a": 90, "b": 300, "c": 2000, "d": 48000},
+        {
+            "event": "Stomatitis",
+            "meddra_pt": "Stomatitis",
+            "a": 210,
+            "b": 180,
+            "c": 1500,
+            "d": 48400,
+        },
+        {
+            "event": "Hyperlipidemia",
+            "meddra_pt": "Hyperlipidemia",
+            "a": 90,
+            "b": 300,
+            "c": 2000,
+            "d": 48000,
+        },
     ],
     "tetrabenazine": [
-        {"event": "Depression", "meddra_pt": "Depression", "a": 50, "b": 100, "c": 1200, "d": 48700},
+        {
+            "event": "Depression",
+            "meddra_pt": "Depression",
+            "a": 50,
+            "b": 100,
+            "c": 1200,
+            "d": 48700,
+        },
         {"event": "Sedation", "meddra_pt": "Sedation", "a": 70, "b": 80, "c": 800, "d": 48900},
     ],
 }
@@ -54,11 +96,10 @@ class FaersService:
     """
 
     def __init__(self, cache_ttl: int = 3600):
-        self._cache: Dict[str, Tuple[float, Dict[str, ContingencyTable]]] = {}
+        self._cache: dict[str, tuple[float, dict[str, ContingencyTable]]] = {}
         self._ttl = cache_ttl
 
-
-    async def get_faers_data(self, drug_name: str) -> Dict[str, ContingencyTable]:
+    async def get_faers_data(self, drug_name: str) -> dict[str, ContingencyTable]:
         """Get FAERS contingency tables for a drug.
 
         Returns a dict mapping event name to ContingencyTable.
@@ -80,7 +121,7 @@ class FaersService:
         self._cache[drug_name] = (time.time(), tables)
         return tables
 
-    async def _fetch_openfda(self, drug_name: str) -> Dict[str, ContingencyTable]:
+    async def _fetch_openfda(self, drug_name: str) -> dict[str, ContingencyTable]:
         """Fetch FAERS data from the openFDA API."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -115,7 +156,7 @@ class FaersService:
                 total_faers = total_resp.json().get("meta", {}).get("results", {}).get("total", 0)
 
                 # For each event, get its total count across all drugs
-                tables: Dict[str, ContingencyTable] = {}
+                tables: dict[str, ContingencyTable] = {}
                 for event, a in event_counts.items():
                     try:
                         event_resp = await client.get(
@@ -126,7 +167,9 @@ class FaersService:
                             },
                         )
                         event_resp.raise_for_status()
-                        event_total = event_resp.json().get("meta", {}).get("results", {}).get("total", 0)
+                        event_total = (
+                            event_resp.json().get("meta", {}).get("results", {}).get("total", 0)
+                        )
                     except Exception:
                         event_total = a
 
@@ -144,12 +187,12 @@ class FaersService:
             logger.warning("openfda_fetch_failed", drug=drug_name, error=str(e))
             return {}
 
-    def _get_builtin_data(self, drug_name: str) -> Dict[str, ContingencyTable]:
+    def _get_builtin_data(self, drug_name: str) -> dict[str, ContingencyTable]:
         """Get built-in fallback data for a drug."""
         drug_key = drug_name.lower()
         entries = BUILTIN_FAERS_DATA.get(drug_key, [])
 
-        tables: Dict[str, ContingencyTable] = {}
+        tables: dict[str, ContingencyTable] = {}
         for entry in entries:
             tables[entry["event"]] = ContingencyTable(
                 a=entry["a"],
@@ -167,7 +210,7 @@ class FaersService:
 
 
 # Module-level singleton
-_faers_service: Optional[FaersService] = None
+_faers_service: FaersService | None = None
 
 
 def get_faers_service() -> FaersService:

@@ -3,14 +3,15 @@ Safety service combining FAERS disproportionality and ADMET predictions.
 
 Provides unified safety assessment for drug candidates.
 """
+
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
-from typing import Dict, List, Optional, Any
 
-from app.ml.faers import FAERSAnalyzer, DisproportionalityResult, ContingencyTable
-
-from app.ml.admet import ADMETPredictor, ADMET_ENDPOINTS
+from app.ml.admet import ADMET_ENDPOINTS, ADMETPredictor
+from app.ml.faers import ContingencyTable, DisproportionalityResult, FAERSAnalyzer
 from app.services.faers_service import FaersService
 
 logger = structlog.get_logger()
@@ -23,16 +24,16 @@ class SafetyService:
         self.faers_analyzer = FAERSAnalyzer()
         self.admet_predictor = ADMETPredictor()
         self._faers_service = FaersService()
-        self._faers_cache: Dict[str, List[DisproportionalityResult]] = {}
-        self._admet_cache: Dict[str, Dict[str, float]] = {}
+        self._faers_cache: dict[str, list[DisproportionalityResult]] = {}
+        self._admet_cache: dict[str, dict[str, float]] = {}
 
     async def assess_drug(
         self,
         drug_id: str,
         drug_name: str,
         smiles: str,
-        faers_reports: Optional[List[Dict[str, Any]]] = None,
-    ) -> Dict[str, Any]:
+        faers_reports: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """Full safety assessment for a drug."""
         # FAERS signals
         faers_signals = []
@@ -84,9 +85,9 @@ class SafetyService:
         self,
         drug_id: str,
         drug_name: str,
-        reports: Optional[List[Dict[str, Any]]] = None,
-        tables: Optional[Dict[str, ContingencyTable]] = None,
-    ) -> List[DisproportionalityResult]:
+        reports: list[dict[str, Any]] | None = None,
+        tables: dict[str, ContingencyTable] | None = None,
+    ) -> list[DisproportionalityResult]:
         """Analyze FAERS reports for a drug."""
         from app.ml.faers import merge_faers_reports
 
@@ -108,7 +109,6 @@ class SafetyService:
                 if table.a < self.faers_analyzer.min_reports:
                     continue
 
-
                 # Get meddra_pt from reports
                 meddra_pt = event
                 for r in reports:
@@ -123,7 +123,7 @@ class SafetyService:
         results.sort(key=lambda r: (r.level != "fail", r.level != "caution", -r.ror))
         return results
 
-    def _predict_admet(self, drug_id: str, smiles: str) -> Dict[str, float]:
+    def _predict_admet(self, drug_id: str, smiles: str) -> dict[str, float]:
         """Predict ADMET properties for a drug."""
         if drug_id in self._admet_cache:
             return self._admet_cache[drug_id]
@@ -132,7 +132,7 @@ class SafetyService:
         self._admet_cache[drug_id] = predictions
         return predictions
 
-    def _faers_overall(self, signals: List[DisproportionalityResult]) -> str:
+    def _faers_overall(self, signals: list[DisproportionalityResult]) -> str:
         """Compute overall FAERS safety level."""
         if not signals:
             return "pass"
@@ -148,9 +148,9 @@ class SafetyService:
 
     def _extract_contraindications(
         self,
-        faers_signals: List[DisproportionalityResult],
-        admet_predictions: Dict[str, float],
-    ) -> List[str]:
+        faers_signals: list[DisproportionalityResult],
+        admet_predictions: dict[str, float],
+    ) -> list[str]:
         """Extract contraindications from safety data."""
         contraindications = []
 
@@ -165,8 +165,6 @@ class SafetyService:
             threshold = float(info["threshold"]) if "threshold" in info else 0.5
             direction = str(info.get("direction", "low"))
 
-
-
             if direction == "low" and value > threshold * 2:
                 contraindications.append(f"High {info.get('name', endpoint)} risk")
             elif direction == "high" and value < threshold * 0.5:
@@ -174,11 +172,11 @@ class SafetyService:
 
         return contraindications
 
-    def get_faers_signals(self, drug_id: str) -> List[DisproportionalityResult]:
+    def get_faers_signals(self, drug_id: str) -> list[DisproportionalityResult]:
         """Get cached FAERS signals for a drug."""
         return self._faers_cache.get(drug_id, [])
 
-    def get_admet_predictions(self, drug_id: str) -> Optional[Dict[str, float]]:
+    def get_admet_predictions(self, drug_id: str) -> dict[str, float] | None:
         """Get cached ADMET predictions for a drug."""
         return self._admet_cache.get(drug_id)
 
@@ -190,7 +188,7 @@ class SafetyService:
         logger.info("safety_cache_cleared")
 
 
-_service: Optional[SafetyService] = None
+_service: SafetyService | None = None
 
 
 def get_safety_service() -> SafetyService:

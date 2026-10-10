@@ -8,16 +8,21 @@ Provides:
 - LLMRationaleGenerator: natural language rationale generation
 - Explainer: facade composing all explainers
 """
+
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any
+
+import numpy as np
 import structlog
 import torch
-import numpy as np
-from typing import List, Dict, Optional, Any
-from pathlib import Path
 
 from app.models.disease import (
-    KGPath, KGPathNode, KGPathEdge, Explanation, Counterfactual,
+    Counterfactual,
+    KGPath,
+    KGPathEdge,
+    KGPathNode,
 )
 
 logger = structlog.get_logger()
@@ -45,6 +50,7 @@ class KGPathExtractor:
 
         if self.kg_service is None:
             from app.services.kg_service import KGService
+
             self.kg_service = KGService()
 
         try:
@@ -123,7 +129,9 @@ class KGPathExtractor:
                 "MATCH (t:Target)-[:PARTICIPATES_IN]->(p:Pathway) RETURN t.id as source, p.id as target"
             )
             for row in participates_edges:
-                self._graph.add_edge(row["source"], row["target"], type="PARTICIPATES_IN", weight=1.0)
+                self._graph.add_edge(
+                    row["source"], row["target"], type="PARTICIPATES_IN", weight=1.0
+                )
 
             # Get IMPLICATED_IN edges (target-disease)
             implicated_edges = self.kg_service.execute(
@@ -142,9 +150,7 @@ class KGPathExtractor:
             logger.error("kg_graph_load_failed", error=str(e))
             self._graph = nx.DiGraph()
 
-    def extract_paths(
-        self, drug_id: str, disease_id: str, k: int = 5
-    ) -> List[KGPath]:
+    def extract_paths(self, drug_id: str, disease_id: str, k: int = 5) -> list[KGPath]:
         """Extract k-shortest paths from drug to disease using Yen's algorithm."""
         self._load_graph()
 
@@ -167,30 +173,36 @@ class KGPathExtractor:
                 kg_edges = []
                 for i, node_id in enumerate(path_nodes):
                     node_data = self._graph.nodes[node_id]
-                    kg_nodes.append(KGPathNode(
-                        id=node_id,
-                        type=node_data.get("type", "unknown"),
-                        name=node_data.get("name", node_id),
-                        properties={},
-                    ))
+                    kg_nodes.append(
+                        KGPathNode(
+                            id=node_id,
+                            type=node_data.get("type", "unknown"),
+                            name=node_data.get("name", node_id),
+                            properties={},
+                        )
+                    )
                     if i < len(path_nodes) - 1:
                         next_id = path_nodes[i + 1]
                         edge_data = self._graph.edges[node_id, next_id]
-                        kg_edges.append(KGPathEdge(
-                            source=node_id,
-                            target=next_id,
-                            type=edge_data.get("type", "unknown"),
-                            weight=edge_data.get("weight", 1.0),
-                        ))
+                        kg_edges.append(
+                            KGPathEdge(
+                                source=node_id,
+                                target=next_id,
+                                type=edge_data.get("type", "unknown"),
+                                weight=edge_data.get("weight", 1.0),
+                            )
+                        )
 
                 path_length = len(kg_edges)
                 score = 1.0 / (1.0 + path_length)
 
-                paths.append(KGPath(
-                    nodes=kg_nodes,
-                    edges=kg_edges,
-                    score=score,
-                ))
+                paths.append(
+                    KGPath(
+                        nodes=kg_nodes,
+                        edges=kg_edges,
+                        score=score,
+                    )
+                )
 
             return paths
 
@@ -241,7 +253,7 @@ class SHAPExplainer:
             logger.error("shap_init_failed", error=str(e))
             self._background_grad = None
 
-    def explain(self, drug_fp: np.ndarray, disease_emb: np.ndarray) -> Dict[str, float]:
+    def explain(self, drug_fp: np.ndarray, disease_emb: np.ndarray) -> dict[str, float]:
         """Compute SHAP values for a drug fingerprint using fast gradient approximation."""
         self._init_shap()
 
@@ -266,7 +278,7 @@ class SHAPExplainer:
 
     def _gradient_attribution(
         self, drug_fp: np.ndarray, disease_emb: np.ndarray
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Gradient-based feature attribution fallback (per-candidate)."""
         try:
             fp_tensor = torch.tensor(drug_fp, dtype=torch.float32, requires_grad=True).unsqueeze(0)
@@ -300,7 +312,7 @@ class CounterfactualExplainer:
 
     def explain(
         self, drug_fp: np.ndarray, disease_emb: np.ndarray, n_cf: int = 3
-    ) -> List[Counterfactual]:
+    ) -> list[Counterfactual]:
         """Generate counterfactual explanations by flipping active bits."""
         try:
             fp_tensor = torch.tensor(drug_fp, dtype=torch.float32).unsqueeze(0)
@@ -333,15 +345,17 @@ class CounterfactualExplainer:
             # Take top n_cf
             results = []
             for bit_idx, delta, cf_prob in counterfactuals[:n_cf]:
-                results.append(Counterfactual(
-                    removed_edge=f"morgan_bit_{bit_idx}",
-                    probability_delta=delta,
-                    description=(
-                        f"If this drug did not have the substructure at bit {bit_idx}, "
-                        f"the indication probability would change by {delta:+.3f} "
-                        f"(from {base_prob:.3f} to {cf_prob:.3f})."
-                    ),
-                ))
+                results.append(
+                    Counterfactual(
+                        removed_edge=f"morgan_bit_{bit_idx}",
+                        probability_delta=delta,
+                        description=(
+                            f"If this drug did not have the substructure at bit {bit_idx}, "
+                            f"the indication probability would change by {delta:+.3f} "
+                            f"(from {base_prob:.3f} to {cf_prob:.3f})."
+                        ),
+                    )
+                )
 
             return results
 
@@ -369,6 +383,7 @@ class LLMRationaleGenerator:
                 return False
 
             from llama_cpp import Llama
+
             self._model = Llama(
                 model_path=str(model_path),
                 n_ctx=2048,
@@ -387,7 +402,7 @@ class LLMRationaleGenerator:
         disease_name: str,
         probability: float,
         moa_summary: str,
-        kg_paths: List[KGPath],
+        kg_paths: list[KGPath],
     ) -> str:
         """Generate natural language rationale."""
         # Try BioMistral first
@@ -408,12 +423,12 @@ class LLMRationaleGenerator:
         disease_name: str,
         probability: float,
         moa_summary: str,
-        kg_paths: List[KGPath],
+        kg_paths: list[KGPath],
     ) -> str:
         """Generate rationale using BioMistral."""
-        path_desc = " -> ".join(
-            [n.name for n in kg_paths[0].nodes]
-        ) if kg_paths else "no known path"
+        path_desc = (
+            " -> ".join([n.name for n in kg_paths[0].nodes]) if kg_paths else "no known path"
+        )
 
         prompt = f"""You are a biomedical AI assistant. Provide a concise rationale for why {drug_name} might be repurposed for {disease_name}.
 
@@ -432,7 +447,7 @@ Rationale (2-3 sentences):"""
         disease_name: str,
         probability: float,
         moa_summary: str,
-        kg_paths: List[KGPath],
+        kg_paths: list[KGPath],
     ) -> str:
         """Generate rationale using templates."""
         if kg_paths:
@@ -470,6 +485,7 @@ class Explainer:
 
         try:
             from app.services.indication_service import get_indication_service
+
             self._indication_service = get_indication_service()
             if self._indication_service.is_ready():
                 self._model = self._indication_service.model
@@ -483,6 +499,7 @@ class Explainer:
         if self.kg_extractor is None:
             try:
                 from app.services.kg_service import KGService
+
                 kg_service = KGService()
                 self.kg_extractor = KGPathExtractor(kg_service)
             except Exception as e:
@@ -514,7 +531,7 @@ class Explainer:
         disease_name: str,
         probability: float,
         moa_summary: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate full explanation for a drug-disease pair."""
         # 1. KG paths
         kg_paths = self._get_kg_extractor().extract_paths(drug_id, disease_id, k=5)
@@ -527,7 +544,7 @@ class Explainer:
         if model is not None and self._indication_service is not None:
             try:
                 # Get drug fingerprint
-                drug_fps = getattr(self._indication_service, 'drug_fingerprints', {})
+                drug_fps = getattr(self._indication_service, "drug_fingerprints", {})
                 if drug_id in drug_fps:
                     drug_fp = np.array(drug_fps[drug_id], dtype=np.float32)
                 else:
@@ -536,6 +553,7 @@ class Explainer:
                     if drug_smiles:
                         from rdkit import Chem
                         from rdkit.Chem import AllChem
+
                         mol = Chem.MolFromSmiles(drug_smiles)
                         if mol:
                             fp = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=1024)
@@ -581,7 +599,7 @@ class Explainer:
         }
 
     @staticmethod
-    def _kg_path_to_dict(path: KGPath) -> Dict[str, Any]:
+    def _kg_path_to_dict(path: KGPath) -> dict[str, Any]:
         return {
             "nodes": [
                 {"id": n.id, "type": n.type, "name": n.name, "properties": n.properties}
@@ -595,7 +613,7 @@ class Explainer:
         }
 
     @staticmethod
-    def _cf_to_dict(cf: Counterfactual) -> Dict[str, Any]:
+    def _cf_to_dict(cf: Counterfactual) -> dict[str, Any]:
         return {
             "removed_edge": cf.removed_edge,
             "probability_delta": cf.probability_delta,

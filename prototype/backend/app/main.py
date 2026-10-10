@@ -1,11 +1,11 @@
 from contextlib import asynccontextmanager
+
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import structlog
 
-from app.core.config import settings
+from app.api.v1 import audit, candidates, diseases, dossier, kg, literature, validation
 from app.core.logging import configure_logging
-from app.api.v1 import diseases, candidates, kg, literature, validation, dossier, audit
 
 configure_logging()
 logger = structlog.get_logger()
@@ -17,6 +17,7 @@ async def lifespan(app: FastAPI):
     # Initialize database tables
     try:
         from app.db.database import create_tables
+
         await create_tables()
         logger.info("database_tables_created")
     except Exception as e:

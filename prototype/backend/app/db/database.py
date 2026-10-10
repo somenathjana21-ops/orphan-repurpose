@@ -1,4 +1,5 @@
 """Database setup and session management."""
+
 from __future__ import annotations
 
 import os
@@ -11,8 +12,7 @@ from sqlalchemy.orm import DeclarativeBase
 # Use absolute path relative to the backend directory (prototype/backend/)
 _backend_dir = Path(__file__).resolve().parent.parent.parent
 DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    f"sqlite+aiosqlite:///{_backend_dir}/data/orphan_repurpose.db"
+    "DATABASE_URL", f"sqlite+aiosqlite:///{_backend_dir}/data/orphan_repurpose.db"
 )
 
 # Ensure data directory exists
@@ -22,6 +22,7 @@ _data_dir.mkdir(parents=True, exist_ok=True)
 
 class Base(DeclarativeBase):
     """Base class for all ORM models."""
+
     pass
 
 
@@ -66,7 +67,9 @@ async def create_tables() -> None:
     # Ensure directory exists for SQLite
     if "sqlite" in DATABASE_URL:
         # Handle both relative and absolute paths
-        db_path = DATABASE_URL.replace("sqlite+aiosqlite:///", "").replace("sqlite+aiosqlite://", "")
+        db_path = DATABASE_URL.replace("sqlite+aiosqlite:///", "").replace(
+            "sqlite+aiosqlite://", ""
+        )
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
     async with engine.begin() as conn:

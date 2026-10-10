@@ -1,17 +1,16 @@
-from datetime import datetime, timezone
-from typing import Any, List, Optional
+from datetime import datetime
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Query
-import structlog
-import pandas as pd
+from typing import Any
 
+import pandas as pd
+import structlog
+from fastapi import APIRouter, HTTPException, Query
 
 from app.core.config import settings
 from app.models.disease import (
-    DiseaseSearchResult,
     DiseaseDetail,
-    DiseaseSearchParams,
     DiseaseSearchResponse,
+    DiseaseSearchResult,
     Gene,
     Pathway,
 )
@@ -34,12 +33,23 @@ _UMLS_TO_ORPHA: dict[str, str] = {}
 # Fallback curated diseases if the parquet is unavailable
 _FALLBACK_DISEASES = [
     {
-        "id": "ORPHA:635", "name": "Niemann-Pick disease type C", "prevalence": 0.5,
-        "prevalence_category": "1/200,000 - 1/2,000", "inheritance": ["Autosomal recessive"],
+        "id": "ORPHA:635",
+        "name": "Niemann-Pick disease type C",
+        "prevalence": 0.5,
+        "prevalence_category": "1/200,000 - 1/2,000",
+        "inheritance": ["Autosomal recessive"],
         "age_of_onset": ["Infantile", "Juvenile", "Adult"],
         "genes": [
-            {"hgnc_id": "HGNC:7694", "symbol": "NPC1", "name": "NPC intracellular cholesterol transporter 1"},
-            {"hgnc_id": "HGNC:14133", "symbol": "NPC2", "name": "NPC intracellular cholesterol transporter 2"},
+            {
+                "hgnc_id": "HGNC:7694",
+                "symbol": "NPC1",
+                "name": "NPC intracellular cholesterol transporter 1",
+            },
+            {
+                "hgnc_id": "HGNC:14133",
+                "symbol": "NPC2",
+                "name": "NPC intracellular cholesterol transporter 2",
+            },
         ],
         "phenotypes": ["Hepatosplenomegaly", "Ataxia", "Dysphagia"],
         "existing_treatments": ["Miglustat"],
@@ -48,30 +58,47 @@ _FALLBACK_DISEASES = [
         "umls_cui": "C0028042",
     },
     {
-        "id": "ORPHA:793", "name": "Cystic fibrosis", "prevalence": 3.5,
-        "prevalence_category": "1/200,000 - 1/2,000", "inheritance": ["Autosomal recessive"],
+        "id": "ORPHA:793",
+        "name": "Cystic fibrosis",
+        "prevalence": 3.5,
+        "prevalence_category": "1/200,000 - 1/2,000",
+        "inheritance": ["Autosomal recessive"],
         "age_of_onset": ["Neonatal", "Infantile", "Childhood"],
-        "genes": [{"hgnc_id": "HGNC:2649", "symbol": "CFTR", "name": "Cystic fibrosis transmembrane conductance regulator"}],
-        "phenotypes": ["Chronic cough", "Recurrent pulmonary infections", "Pancreatic insufficiency"],
-        "existing_treatments": ["Ivacaftor"], "unmet_need_score": 0.60,
+        "genes": [
+            {
+                "hgnc_id": "HGNC:2649",
+                "symbol": "CFTR",
+                "name": "Cystic fibrosis transmembrane conductance regulator",
+            }
+        ],
+        "phenotypes": [
+            "Chronic cough",
+            "Recurrent pulmonary infections",
+            "Pancreatic insufficiency",
+        ],
+        "existing_treatments": ["Ivacaftor"],
+        "unmet_need_score": 0.60,
         "description": "Cystic fibrosis is a genetic disorder affecting the CFTR protein.",
         "umls_cui": "C0010674",
     },
     {
-        "id": "ORPHA:98065", "name": "Huntington disease", "prevalence": 5.0,
-        "prevalence_category": "1/200,000 - 1/2,000", "inheritance": ["Autosomal dominant"],
+        "id": "ORPHA:98065",
+        "name": "Huntington disease",
+        "prevalence": 5.0,
+        "prevalence_category": "1/200,000 - 1/2,000",
+        "inheritance": ["Autosomal dominant"],
         "age_of_onset": ["Adult"],
         "genes": [{"hgnc_id": "HGNC:4848", "symbol": "HTT", "name": "Huntingtin"}],
         "phenotypes": ["Chorea", "Cognitive decline", "Psychiatric disturbances"],
-        "existing_treatments": ["Tetrabenazine"], "unmet_need_score": 0.75,
+        "existing_treatments": ["Tetrabenazine"],
+        "unmet_need_score": 0.75,
         "description": "Huntington disease is a progressive neurodegenerative disorder.",
         "umls_cui": "C0020179",
     },
 ]
 
 
-
-def _compute_unmet_need(prevalence: Optional[float], n_treatments: int, n_genes: int) -> float:
+def _compute_unmet_need(prevalence: float | None, n_treatments: int, n_genes: int) -> float:
     """Heuristic unmet-need score in [0, 1].
 
     Rare + few existing treatments + known genetic basis -> higher unmet need.
@@ -83,7 +110,7 @@ def _compute_unmet_need(prevalence: Optional[float], n_treatments: int, n_genes:
     return round(0.45 * rarity + 0.35 * treatment_gap + 0.20 * genetic_basis, 3)
 
 
-def _load_diseases() -> List[dict]:
+def _load_diseases() -> list[dict]:
     """Load and normalise disease records from the processed parquet."""
     global _UMLS_TO_ORPHA
     for path in _ORPHA_PARQUET_CANDIDATES:
@@ -107,11 +134,13 @@ def _load_diseases() -> List[dict]:
                 try:
                     for g in list(genes_raw):
                         if isinstance(g, dict) and g.get("symbol"):
-                            genes.append({
-                                "hgnc_id": g.get("hgnc_id") or f"HGNC:{g['symbol']}",
-                                "symbol": g["symbol"],
-                                "name": g.get("name") or g["symbol"],
-                            })
+                            genes.append(
+                                {
+                                    "hgnc_id": g.get("hgnc_id") or f"HGNC:{g['symbol']}",
+                                    "symbol": g["symbol"],
+                                    "name": g.get("name") or g["symbol"],
+                                }
+                            )
                 except Exception:
                     genes = []
 
@@ -119,7 +148,11 @@ def _load_diseases() -> List[dict]:
             phenotypes = []
             if hpo_raw is not None:
                 try:
-                    phenotypes = [h.get("term") for h in list(hpo_raw) if isinstance(h, dict) and h.get("term")]
+                    phenotypes = [
+                        h.get("term")
+                        for h in list(hpo_raw)
+                        if isinstance(h, dict) and h.get("term")
+                    ]
                 except Exception:
                     phenotypes = []
 
@@ -127,7 +160,9 @@ def _load_diseases() -> List[dict]:
             prev = float(prev) if pd.notna(prev) else None
 
             inheritance = row.get("inheritance")
-            inheritance_list = inheritance.split("|") if isinstance(inheritance, str) and inheritance else []
+            inheritance_list = (
+                inheritance.split("|") if isinstance(inheritance, str) and inheritance else []
+            )
             onset = row.get("age_of_onset")
             onset_list = onset.split("|") if isinstance(onset, str) and onset else []
 
@@ -135,20 +170,22 @@ def _load_diseases() -> List[dict]:
             if isinstance(cui, str) and cui:
                 _UMLS_TO_ORPHA[f"UMLS:{cui}"] = orpha_id
 
-            records.append({
-                "id": orpha_id,
-                "name": row.get("name") or orpha_id,
-                "prevalence": prev,
-                "prevalence_category": row.get("prevalence_category"),
-                "inheritance": inheritance_list,
-                "age_of_onset": onset_list,
-                "genes": genes,
-                "phenotypes": phenotypes,
-                "existing_treatments": [],
-                "unmet_need_score": _compute_unmet_need(prev, 0, len(genes)),
-                "description": f"{row.get('name')} is a rare disease catalogued in Orphanet.",
-                "umls_cui": cui if isinstance(cui, str) else None,
-            })
+            records.append(
+                {
+                    "id": orpha_id,
+                    "name": row.get("name") or orpha_id,
+                    "prevalence": prev,
+                    "prevalence_category": row.get("prevalence_category"),
+                    "inheritance": inheritance_list,
+                    "age_of_onset": onset_list,
+                    "genes": genes,
+                    "phenotypes": phenotypes,
+                    "existing_treatments": [],
+                    "unmet_need_score": _compute_unmet_need(prev, 0, len(genes)),
+                    "description": f"{row.get('name')} is a rare disease catalogued in Orphanet.",
+                    "umls_cui": cui if isinstance(cui, str) else None,
+                }
+            )
 
         if records:
             logger.info("diseases_loaded", count=len(records), path=str(path))
@@ -230,13 +267,12 @@ def _to_detail(d: dict) -> DiseaseDetail:
     )
 
 
-
 @router.get("", response_model=DiseaseSearchResponse)
 async def search_diseases(
-    q: Optional[str] = Query(None, description="Search query (name, ORPHA code, gene, pathway)"),
-    prevalence_max: Optional[float] = Query(None, description="Maximum prevalence (per 100,000)"),
-    gene: Optional[str] = Query(None, description="Gene symbol filter"),
-    pathway: Optional[str] = Query(None, description="Pathway name filter"),
+    q: str | None = Query(None, description="Search query (name, ORPHA code, gene, pathway)"),
+    prevalence_max: float | None = Query(None, description="Maximum prevalence (per 100,000)"),
+    gene: str | None = Query(None, description="Gene symbol filter"),
+    pathway: str | None = Query(None, description="Pathway name filter"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     sort_by: str = Query("unmet_need_score"),
@@ -248,19 +284,22 @@ async def search_diseases(
         if q:
             q_lower = q.lower()
             filtered = [
-                d for d in filtered
+                d
+                for d in filtered
                 if q_lower in d["name"].lower()
                 or q_lower in d["id"].lower()
                 or any(q_lower in g["symbol"].lower() for g in d.get("genes", []))
             ]
         if prevalence_max is not None:
             filtered = [
-                d for d in filtered
+                d
+                for d in filtered
                 if d.get("prevalence") is None or d["prevalence"] <= prevalence_max
             ]
         if gene:
             filtered = [
-                d for d in filtered
+                d
+                for d in filtered
                 if any(g["symbol"].upper() == gene.upper() for g in d.get("genes", []))
             ]
 
@@ -285,7 +324,7 @@ async def search_diseases(
         )
     except Exception as e:
         logger.error("disease_search_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Disease search failed")
+        raise HTTPException(status_code=500, detail="Disease search failed") from e
 
 
 @router.get("/{orpha_id}", response_model=DiseaseDetail)
@@ -297,7 +336,7 @@ async def get_disease(orpha_id: str):
     return _to_detail(d)
 
 
-@router.get("/{orpha_id}/genes", response_model=List[str])
+@router.get("/{orpha_id}/genes", response_model=list[str])
 async def get_disease_genes(orpha_id: str):
     """Get genes associated with a disease."""
     d = _DISEASE_BY_ID.get(orpha_id)
@@ -306,7 +345,7 @@ async def get_disease_genes(orpha_id: str):
     return [g["symbol"] for g in d.get("genes", [])]
 
 
-@router.get("/{orpha_id}/pathways", response_model=List[str])
+@router.get("/{orpha_id}/pathways", response_model=list[str])
 async def get_disease_pathways(orpha_id: str):
     """Get pathways associated with a disease."""
     d = _DISEASE_BY_ID.get(orpha_id)

@@ -1,9 +1,6 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
-import os
-
-
 from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 _PROTOTYPE_DIR = _BACKEND_DIR.parent
@@ -24,7 +21,9 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # Database
-    DATABASE_URL: str = f"sqlite+aiosqlite:///{(_BACKEND_DIR / 'data' / 'orphan_repurpose.db').as_posix()}"
+    DATABASE_URL: str = (
+        f"sqlite+aiosqlite:///{(_BACKEND_DIR / 'data' / 'orphan_repurpose.db').as_posix()}"
+    )
     KUZU_DB_PATH: str = str(_DEFAULT_DATA_DIR / "kuzu_db")
     CHROMA_DB_PATH: str = str(_DEFAULT_DATA_DIR / "chroma_db")
 
@@ -39,10 +38,9 @@ class Settings(BaseSettings):
     KG_EMBEDDINGS_PATH: str = str(_DEFAULT_MODELS_DIR / "kg_embeddings.pkl")
     BIOMISTRAL_MODEL_PATH: str = str(_DEFAULT_MODELS_DIR / "bioMistral-7b.Q4_K_M.gguf")
 
-
     # External APIs (optional for prototype)
-    PUBMED_API_KEY: Optional[str] = None
-    CHEMBL_API_KEY: Optional[str] = None
+    PUBMED_API_KEY: str | None = None
+    CHEMBL_API_KEY: str | None = None
 
     # Security (prototype - no auth)
     SECRET_KEY: str = "dev-secret-change-in-production"
@@ -53,7 +51,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # Disclaimer
-    DISCLAIMER: str = "RESEARCH PROTOTYPE — Not for clinical use. Outputs require human expert validation."
+    DISCLAIMER: str = (
+        "RESEARCH PROTOTYPE — Not for clinical use. Outputs require human expert validation."
+    )
 
 
 settings = Settings()

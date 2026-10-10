@@ -1,13 +1,11 @@
-from fastapi import APIRouter, HTTPException
-from typing import List, Optional
-from datetime import datetime, timezone
-import structlog
 import uuid
 
-from sqlalchemy import select
+import structlog
+from fastapi import APIRouter, HTTPException
+
 from app.db.database import async_session_factory
-from app.db.models import ValidationModel, SelfAssessmentModel
-from app.models.disease import ValidationRequest, SelfAssessmentRequest, AuditEntry, AuditTrail
+from app.db.models import SelfAssessmentModel, ValidationModel
+from app.models.disease import AuditTrail, SelfAssessmentRequest, ValidationRequest
 from app.services.audit_service import get_audit_service
 
 logger = structlog.get_logger()
@@ -33,6 +31,7 @@ async def validate_candidate(candidate_id: str, request: ValidationRequest):
 
         # Also store in validations table
         from app.db.database import _ensure_tables
+
         await _ensure_tables()
         async with async_session_factory() as db:
             validation = ValidationModel(
@@ -54,7 +53,7 @@ async def validate_candidate(candidate_id: str, request: ValidationRequest):
         }
     except Exception as e:
         logger.error("validation_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to record validation")
+        raise HTTPException(status_code=500, detail="Failed to record validation") from e
 
 
 @router.post("/candidates/{candidate_id}/assess")
@@ -78,6 +77,7 @@ async def self_assess_candidate(candidate_id: str, request: SelfAssessmentReques
 
         # Also store in self_assessments table
         from app.db.database import _ensure_tables
+
         await _ensure_tables()
         async with async_session_factory() as db:
             assessment = SelfAssessmentModel(
@@ -100,7 +100,7 @@ async def self_assess_candidate(candidate_id: str, request: SelfAssessmentReques
         }
     except Exception as e:
         logger.error("self_assessment_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to record self-assessment")
+        raise HTTPException(status_code=500, detail="Failed to record self-assessment") from e
 
 
 @router.get("/{session_id}", response_model=AuditTrail)
@@ -110,13 +110,15 @@ async def get_audit_trail(session_id: str):
         svc = get_audit_service()
         trail = await svc.get_trail(session_id)
         if trail is None:
-            raise HTTPException(status_code=404, detail=f"Audit trail for session {session_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"Audit trail for session {session_id} not found"
+            )
         return trail
     except HTTPException:
         raise
     except Exception as e:
         logger.error("audit_trail_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to retrieve audit trail")
+        raise HTTPException(status_code=500, detail="Failed to retrieve audit trail") from e
 
 
 @router.get("/{session_id}/verify")
@@ -126,13 +128,15 @@ async def verify_audit_trail(session_id: str):
         svc = get_audit_service()
         result = await svc.verify(session_id)
         if not result.get("valid") and result.get("message") == "Session not found":
-            raise HTTPException(status_code=404, detail=f"Audit trail for session {session_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"Audit trail for session {session_id} not found"
+            )
         return result
     except HTTPException:
         raise
     except Exception as e:
         logger.error("audit_verification_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to verify audit trail")
+        raise HTTPException(status_code=500, detail="Failed to verify audit trail") from e
 
 
 @router.get("/sessions")
@@ -144,4 +148,4 @@ async def list_sessions():
         return {"sessions": sessions}
     except Exception as e:
         logger.error("audit_list_sessions_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to list sessions")
+        raise HTTPException(status_code=500, detail="Failed to list sessions") from e

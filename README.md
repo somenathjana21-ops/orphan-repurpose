@@ -373,6 +373,7 @@ make verify
 - [x] **Clinician Review & Audit Trail**: Interactive validation panel with SQLite-persisted audit trails.
 - [x] **Automated Dossier Generator**: FDA Orphan Drug Designation draft compilation.
 - [x] **Modern Asklepios Interface Redesign**: Frosted-glass design system, framed canvas architecture, Cytoscape graph visualizer, and slide-over navigation.
+- [x] **Code Quality & Testing**: 220 passing tests with 82.37% coverage; B904 exception chaining fixes; lint compliance.
 - [ ] **Multi-Omics & Phenotype Expansion**: Integration of Orphanet HPO phenotypes and MONDO ontology cross-mappings.
 - [ ] **Cloud Deployment Blueprints**: Terraform & Helm templates for AWS, GCP, and HIPAA-compliant HPC environments.
 - [ ] **Open Benchmark Leaderboard**: Community benchmark platform for evaluating rare disease repurposing models.

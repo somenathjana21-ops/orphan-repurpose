@@ -11,11 +11,13 @@ References:
 - van der Elst et al. (2012) "The ROR and PRR"
 - Norén et al. (2016) "A computationally efficient BCPNN"
 """
+
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Any
+
 import structlog
 
 logger = structlog.get_logger()
@@ -24,6 +26,7 @@ logger = structlog.get_logger()
 @dataclass
 class ContingencyTable:
     """2x2 contingency table for a drug-event pair."""
+
     a: int  # drug + event
     b: int  # drug + other events
     c: int  # other drugs + event
@@ -49,6 +52,7 @@ class ContingencyTable:
 @dataclass
 class DisproportionalityResult:
     """Results of disproportionality analysis for a drug-event pair."""
+
     drug_id: str
     drug_name: str
     event: str
@@ -69,14 +73,20 @@ class DisproportionalityResult:
 class FAERSAnalyzer:
     """Computes pharmacovigilance disproportionality metrics."""
 
-    def __init__(self, min_reports: int = 3, ror_threshold: float = 2.0, prr_threshold: float = 2.0, bcpnn_threshold: float = 0.0):
+    def __init__(
+        self,
+        min_reports: int = 3,
+        ror_threshold: float = 2.0,
+        prr_threshold: float = 2.0,
+        bcpnn_threshold: float = 0.0,
+    ):
         self.min_reports = min_reports
         self.ror_threshold = ror_threshold
         self.prr_threshold = prr_threshold
         self.bcpnn_threshold = bcpnn_threshold
-        self._table_cache: Dict[Tuple[str, str], ContingencyTable] = {}
+        self._table_cache: dict[tuple[str, str], ContingencyTable] = {}
 
-    def compute_ror(self, table: ContingencyTable) -> Tuple[float, float, float]:
+    def compute_ror(self, table: ContingencyTable) -> tuple[float, float, float]:
         """Compute Reporting Odds Ratio with 95% confidence interval.
 
         ROR = (a/c) / (b/d) = (a*d) / (b*c)
@@ -92,13 +102,13 @@ class FAERSAnalyzer:
         ror = (a * d) / (b * c)
 
         # 95% CI
-        se = math.sqrt(1/a + 1/b + 1/c + 1/d)
+        se = math.sqrt(1 / a + 1 / b + 1 / c + 1 / d)
         ci_lower = math.exp(math.log(ror) - 1.96 * se)
         ci_upper = math.exp(math.log(ror) + 1.96 * se)
 
         return ror, ci_lower, ci_upper
 
-    def compute_prr(self, table: ContingencyTable) -> Tuple[float, float]:
+    def compute_prr(self, table: ContingencyTable) -> tuple[float, float]:
         """Compute Proportional Reporting Ratio with chi-square.
 
         PRR = (a / (a + c)) / (b / (b + d)) = (a * (b + d)) / (b * (a + c))
@@ -128,7 +138,7 @@ class FAERSAnalyzer:
 
         return prr, chi2
 
-    def compute_bcpnn(self, table: ContingencyTable) -> Tuple[float, float, float]:
+    def compute_bcpnn(self, table: ContingencyTable) -> tuple[float, float, float]:
         """Compute Bayesian Confidence Propagation Neural Network (BCPNN).
 
         IC = log2( (a + gamma) / ((a + c) * (a + b) / (a + b + c + d + gamma)) )
@@ -185,7 +195,11 @@ class FAERSAnalyzer:
             return "pass"
 
         # Strong signal
-        if ror >= self.ror_threshold and prr >= self.prr_threshold and bcpnn_ic > self.bcpnn_threshold:
+        if (
+            ror >= self.ror_threshold
+            and prr >= self.prr_threshold
+            and bcpnn_ic > self.bcpnn_threshold
+        ):
             return "fail"
 
         # Weak signal
@@ -244,8 +258,8 @@ def compute_2x2_table(
 
 
 def merge_faers_reports(
-    reports: List[Dict[str, Any]],
-) -> Dict[Tuple[str, str], ContingencyTable]:
+    reports: list[dict[str, Any]],
+) -> dict[tuple[str, str], ContingencyTable]:
     """Aggregate FAERS reports into drug-event count pairs.
 
 
@@ -253,9 +267,9 @@ def merge_faers_reports(
     Returns: {(drug_id, event): {a, b, c, d}}
     """
     # First pass: count per drug-event
-    drug_event_counts: Dict[Tuple[str, str], int] = {}
-    drug_counts: Dict[str, int] = {}
-    event_counts: Dict[str, int] = {}
+    drug_event_counts: dict[tuple[str, str], int] = {}
+    drug_counts: dict[str, int] = {}
+    event_counts: dict[str, int] = {}
     total = 0
 
     for report in reports:
@@ -271,11 +285,13 @@ def merge_faers_reports(
         total += 1
 
     # Build 2x2 tables
-    tables: Dict[Tuple[str, str], ContingencyTable] = {}
+    tables: dict[tuple[str, str], ContingencyTable] = {}
     for (drug_id, event), a in drug_event_counts.items():
         b = drug_counts[drug_id] - a
         c = event_counts[event] - a
         d = total - a - b - c
-        tables[(drug_id, event)] = ContingencyTable(a=max(a, 0), b=max(b, 0), c=max(c, 0), d=max(d, 0))
+        tables[(drug_id, event)] = ContingencyTable(
+            a=max(a, 0), b=max(b, 0), c=max(c, 0), d=max(d, 0)
+        )
 
     return tables

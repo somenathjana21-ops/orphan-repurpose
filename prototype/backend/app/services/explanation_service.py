@@ -3,10 +3,12 @@ Explanation service for OrphanRepurpose.
 
 Caches and serves explanations for drug-disease pairs.
 """
+
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
-from typing import Dict, Optional, Any
 
 from app.ml.explainer import Explainer
 
@@ -18,7 +20,7 @@ class ExplanationService:
 
     def __init__(self):
         self._explainer = Explainer()
-        self._cache: Dict[tuple, Dict[str, Any]] = {}
+        self._cache: dict[tuple, dict[str, Any]] = {}
 
     def explain_candidate(
         self,
@@ -28,7 +30,7 @@ class ExplanationService:
         disease_name: str,
         probability: float,
         moa_summary: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate or retrieve cached explanation."""
         cache_key = (drug_id, disease_id)
 
@@ -58,9 +60,11 @@ class ExplanationService:
 
         except Exception as e:
             logger.error("explanation_generation_failed", error=str(e))
-            return self._fallback_explanation(drug_id, disease_id, drug_name, disease_name, probability, moa_summary)
+            return self._fallback_explanation(
+                drug_id, disease_id, drug_name, disease_name, probability, moa_summary
+            )
 
-    def get_cached(self, drug_id: str, disease_id: str) -> Optional[Dict[str, Any]]:
+    def get_cached(self, drug_id: str, disease_id: str) -> dict[str, Any] | None:
         """Get cached explanation if available."""
         return self._cache.get((drug_id, disease_id))
 
@@ -77,7 +81,7 @@ class ExplanationService:
         disease_name: str,
         probability: float,
         moa_summary: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate a fallback explanation when the full pipeline fails."""
         return {
             "candidate_id": f"{drug_id}_{disease_id}",
@@ -91,7 +95,7 @@ class ExplanationService:
         }
 
 
-_service: Optional[ExplanationService] = None
+_service: ExplanationService | None = None
 
 
 def get_explanation_service() -> ExplanationService:

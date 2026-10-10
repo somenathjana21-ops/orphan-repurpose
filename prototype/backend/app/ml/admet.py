@@ -13,12 +13,13 @@ ADMET endpoints (22 total from TDC ADMET_Group):
 - Toxicity: hERG, DILI, AMES, Carcinogenicity
 - General: hERG, DILI, AMES, Carcinogenicity, Skin Reaction
 """
+
 from __future__ import annotations
 
-import structlog
+from typing import Any
+
 import numpy as np
-from typing import Dict, List, Optional, Any
-from pathlib import Path
+import structlog
 
 logger = structlog.get_logger()
 
@@ -27,29 +28,69 @@ logger = structlog.get_logger()
 ADMET_ENDPOINTS = {
     # Absorption
     "Caco2": {"name": "Caco-2 Permeability", "unit": "cm/s", "threshold": 0.5, "direction": "high"},
-    "HIA": {"name": "Human Intestinal Absorption", "unit": "%", "threshold": 0.3, "direction": "high"},
-    "Pgp": {"name": "P-glycoprotein Inhibition", "unit": "binary", "threshold": 0.5, "direction": "low"},
+    "HIA": {
+        "name": "Human Intestinal Absorption",
+        "unit": "%",
+        "threshold": 0.3,
+        "direction": "high",
+    },
+    "Pgp": {
+        "name": "P-glycoprotein Inhibition",
+        "unit": "binary",
+        "threshold": 0.5,
+        "direction": "low",
+    },
     "PAMPP": {"name": "PAMPA Permeability", "unit": "cm/s", "threshold": 0.5, "direction": "high"},
     # Distribution
     "PPB": {"name": "Plasma Protein Binding", "unit": "%", "threshold": 0.9, "direction": "low"},
-    "VDSS": {"name": "Volume of Distribution", "unit": "L/kg", "threshold": 1.0, "direction": "low"},
+    "VDSS": {
+        "name": "Volume of Distribution",
+        "unit": "L/kg",
+        "threshold": 1.0,
+        "direction": "low",
+    },
     "BBB": {"name": "Blood-Brain Barrier", "unit": "binary", "threshold": 0.5, "direction": "high"},
     # Metabolism
     "CYP1A2": {"name": "CYP1A2 Inhibition", "unit": "binary", "threshold": 0.5, "direction": "low"},
-    "CYP2C19": {"name": "CYP2C19 Inhibition", "unit": "binary", "threshold": 0.5, "direction": "low"},
+    "CYP2C19": {
+        "name": "CYP2C19 Inhibition",
+        "unit": "binary",
+        "threshold": 0.5,
+        "direction": "low",
+    },
     "CYP2C9": {"name": "CYP2C9 Inhibition", "unit": "binary", "threshold": 0.5, "direction": "low"},
     "CYP2D6": {"name": "CYP2D6 Inhibition", "unit": "binary", "threshold": 0.5, "direction": "low"},
     "CYP3A4": {"name": "CYP3A4 Inhibition", "unit": "binary", "threshold": 0.5, "direction": "low"},
     # Excretion
     "CL": {"name": "Clearance", "unit": "mL/min/kg", "threshold": 5.0, "direction": "low"},
     "HalfLife": {"name": "Half-Life", "unit": "hours", "threshold": 12.0, "direction": "low"},
-    "Clearance": {"name": "Hepatic Clearance", "unit": "mL/min/kg", "threshold": 5.0, "direction": "low"},
+    "Clearance": {
+        "name": "Hepatic Clearance",
+        "unit": "mL/min/kg",
+        "threshold": 5.0,
+        "direction": "low",
+    },
     # Toxicity
     "hERG": {"name": "hERG Inhibition", "unit": "binary", "threshold": 0.5, "direction": "low"},
-    "DILI": {"name": "Drug-Induced Liver Injury", "unit": "binary", "threshold": 0.5, "direction": "low"},
+    "DILI": {
+        "name": "Drug-Induced Liver Injury",
+        "unit": "binary",
+        "threshold": 0.5,
+        "direction": "low",
+    },
     "AMES": {"name": "AMES Mutagenicity", "unit": "binary", "threshold": 0.5, "direction": "low"},
-    "Carcinogenicity": {"name": "Carcinogenicity", "unit": "binary", "threshold": 0.5, "direction": "low"},
-    "SkinReaction": {"name": "Skin Sensitization", "unit": "binary", "threshold": 0.5, "direction": "low"},
+    "Carcinogenicity": {
+        "name": "Carcinogenicity",
+        "unit": "binary",
+        "threshold": 0.5,
+        "direction": "low",
+    },
+    "SkinReaction": {
+        "name": "Skin Sensitization",
+        "unit": "binary",
+        "threshold": 0.5,
+        "direction": "low",
+    },
 }
 
 
@@ -58,32 +99,33 @@ class ADMETPredictor:
 
     def __init__(self):
         self._tdc_available = False
-        self._models: Dict[str, Any] = {}
+        self._models: dict[str, Any] = {}
         self._check_tdc()
 
     def _check_tdc(self):
         """Check if TDC is available."""
         try:
             from tdc import BenchmarkGroup
+
             self._tdc_available = True
             logger.info("tdc_available")
         except ImportError:
             self._tdc_available = False
             logger.warning("tdc_not_available_using_rdkit_fallback")
 
-    def predict(self, smiles: str) -> Dict[str, float]:
+    def predict(self, smiles: str) -> dict[str, float]:
         """Predict all ADMET endpoints for a SMILES string."""
         if self._tdc_available:
             return self._predict_tdc(smiles)
         return self._predict_rdkit(smiles)
 
-    def _predict_tdc(self, smiles: str) -> Dict[str, float]:
+    def _predict_tdc(self, smiles: str) -> dict[str, float]:
         """Predict using TDC models."""
         results = {}
         try:
             from tdc.single_pred import ADME
 
-            for endpoint, info in ADMET_ENDPOINTS.items():
+            for endpoint, _info in ADMET_ENDPOINTS.items():
                 try:
                     if endpoint not in self._models:
                         self._models[endpoint] = ADME(name=endpoint)
@@ -103,22 +145,22 @@ class ADMETPredictor:
 
         return results
 
-    def _predict_rdkit(self, smiles: str) -> Dict[str, float]:
+    def _predict_rdkit(self, smiles: str) -> dict[str, float]:
         """Predict using RDKit descriptors as fallback."""
         try:
             from rdkit import Chem
-            from rdkit.Chem import Descriptors, Crippen, rdMolDescriptors
+            from rdkit.Chem import Crippen, Descriptors, rdMolDescriptors
 
             mol = Chem.MolFromSmiles(smiles)
             if mol is None:
-                return {k: 0.0 for k in ADMET_ENDPOINTS}
+                return dict.fromkeys(ADMET_ENDPOINTS, 0.0)
 
             mw = Descriptors.MolWt(mol)
             logp = Crippen.MolLogP(mol)
             hbd = rdMolDescriptors.CalcNumHBD(mol)
             hba = rdMolDescriptors.CalcNumHBA(mol)
             tpsa = rdMolDescriptors.CalcTPSA(mol)
-            rotatable = rdMolDescriptors.CalcNumRotatableBonds(mol)
+            rdMolDescriptors.CalcNumRotatableBonds(mol)
             aromatic = rdMolDescriptors.CalcNumAromaticRings(mol)
 
             # Simple rule-based approximations
@@ -148,22 +190,20 @@ class ADMETPredictor:
 
         except Exception as e:
             logger.error("rdkit_predict_failed", error=str(e))
-            return {k: 0.0 for k in ADMET_ENDPOINTS}
+            return dict.fromkeys(ADMET_ENDPOINTS, 0.0)
 
     def _predict_rdkit_single(self, smiles: str, endpoint: str) -> float:
         """Predict a single endpoint using RDKit."""
         results = self._predict_rdkit(smiles)
         return results.get(endpoint, 0.0)
 
-    def classify_safety(self, predictions: Dict[str, float]) -> Dict[str, str]:
+    def classify_safety(self, predictions: dict[str, float]) -> dict[str, str]:
         """Classify each endpoint as 'pass', 'caution', or 'fail'."""
         classifications = {}
         for endpoint, value in predictions.items():
             info = ADMET_ENDPOINTS.get(endpoint, {})
             threshold = float(info["threshold"]) if "threshold" in info else 0.5
             direction = str(info.get("direction", "low"))
-
-
 
             if direction == "high":
                 # Higher is better
@@ -184,7 +224,7 @@ class ADMETPredictor:
 
         return classifications
 
-    def overall_safety(self, predictions: Dict[str, float]) -> str:
+    def overall_safety(self, predictions: dict[str, float]) -> str:
         """Compute overall safety classification."""
         classifications = self.classify_safety(predictions)
         n_fail = sum(1 for v in classifications.values() if v == "fail")

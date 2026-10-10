@@ -11,10 +11,10 @@ Architecture (per docs/06_data_and_models.md §3.1):
 The model is intentionally small enough to train on CPU for the prototype while
 keeping the same tensor shapes as the production spec.
 """
+
 from __future__ import annotations
 
 import math
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -65,9 +65,7 @@ class GraphSAGEDrugEncoder(nn.Module):
     ):
         super().__init__()
         dims = [node_feature_dim] + [hidden_dim] * num_layers
-        self.convs = nn.ModuleList(
-            [GraphSAGEConv(dims[i], dims[i + 1]) for i in range(num_layers)]
-        )
+        self.convs = nn.ModuleList([GraphSAGEConv(dims[i], dims[i + 1]) for i in range(num_layers)])
         self.dropout = nn.Dropout(dropout)
         self.output_dim = hidden_dim
 
@@ -75,7 +73,7 @@ class GraphSAGEDrugEncoder(nn.Module):
         self,
         x: torch.Tensor,
         edge_index: torch.Tensor,
-        batch: Optional[torch.Tensor] = None,
+        batch: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Returns [num_graphs, hidden_dim] pooled embeddings."""
         for i, conv in enumerate(self.convs):
@@ -138,8 +136,8 @@ class CrossAttentionFusion(nn.Module):
 
     def forward(self, drug_emb: torch.Tensor, disease_emb: torch.Tensor) -> torch.Tensor:
         """drug_emb/disease_emb: [B, D] -> fused [B, 3D+1]."""
-        d = drug_emb.unsqueeze(1)      # [B, 1, D]
-        s = disease_emb.unsqueeze(1)   # [B, 1, D]
+        d = drug_emb.unsqueeze(1)  # [B, 1, D]
+        s = disease_emb.unsqueeze(1)  # [B, 1, D]
 
         # drug attends to disease
         d_att, _ = self.drug_to_disease(d, s, s)
@@ -155,7 +153,7 @@ class CrossAttentionFusion(nn.Module):
         # explicit interaction terms — give the head direct similarity signals
         prod = d_fused * s_fused
         absdiff = torch.abs(d_fused - s_fused)
-        dot = (d_fused * s_fused).sum(dim=-1, keepdim=True) / (self.embed_dim ** 0.5)
+        dot = (d_fused * s_fused).sum(dim=-1, keepdim=True) / (self.embed_dim**0.5)
 
         return torch.cat([merged, prod, absdiff, dot], dim=-1)
 
@@ -176,9 +174,7 @@ class IndicationModel(nn.Module):
         dropout: float = 0.1,
     ):
         super().__init__()
-        self.drug_encoder = GraphSAGEDrugEncoder(
-            node_feature_dim, hidden_dim, num_layers, dropout
-        )
+        self.drug_encoder = GraphSAGEDrugEncoder(node_feature_dim, hidden_dim, num_layers, dropout)
         self.disease_encoder = DiseaseEncoder(kg_dim, hidden_dim, dropout)
         self.fusion = CrossAttentionFusion(hidden_dim, num_heads, dropout)
 
@@ -312,7 +308,7 @@ class ConformalPredictor:
 
     def __init__(self, coverage: float = 0.90):
         self.coverage = coverage
-        self.q_hat: Optional[float] = None
+        self.q_hat: float | None = None
 
     def calibrate(self, probs: torch.Tensor, targets: torch.Tensor):
         """Compute the conformal quantile from calibration residuals."""
