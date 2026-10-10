@@ -21,18 +21,13 @@ export function Navbar({ onOpenMenu, backendOnline }: NavbarProps) {
     <header className="h-20 px-6 sm:px-10 flex items-center justify-between border-b border-slate-100/90 bg-white/80 backdrop-blur-md shrink-0">
       {/* Brand Logo & Mark */}
       <div className="flex items-center gap-8">
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-base shadow-sm group-hover:scale-105 transition-transform">
-            +
-          </div>
-          <div className="flex flex-col">
-            <span className="text-lg font-bold tracking-tight text-slate-900 leading-tight">
-              orphan repurpose
-            </span>
-            <span className="text-[10px] font-semibold tracking-wider text-blue-600 uppercase">
-              asklepios biotech ai
-            </span>
-          </div>
+        <Link to="/" className="flex flex-col group">
+          <span className="text-lg font-bold tracking-tight text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">
+            orphan repurpose
+          </span>
+          <span className="text-[10px] font-semibold tracking-wider text-blue-600 uppercase">
+            asklepios biotech ai
+          </span>
         </Link>
 
         {/* Primary Desktop Nav Links */}

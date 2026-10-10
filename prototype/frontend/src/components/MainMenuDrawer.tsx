@@ -72,18 +72,13 @@ export function MainMenuDrawer({ isOpen, onClose, backendOnline }: MainMenuDrawe
         <div>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-base shadow-sm">
-                +
-              </div>
-              <div>
-                <span className="text-base font-bold tracking-tight text-slate-900 block leading-tight">
-                  orphan repurpose
-                </span>
-                <span className="text-[10px] font-semibold tracking-wider text-blue-600 uppercase">
-                  asklepios biotech
-                </span>
-              </div>
+            <div>
+              <span className="text-base font-bold tracking-tight text-slate-900 block leading-tight">
+                orphan repurpose
+              </span>
+              <span className="text-[10px] font-semibold tracking-wider text-blue-600 uppercase">
+                asklepios biotech
+              </span>
             </div>
             <button
               onClick={onClose}
