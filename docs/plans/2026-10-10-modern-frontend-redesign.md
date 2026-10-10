@@ -39,12 +39,12 @@
 - Add border-radius: `'3xl': '1.75rem'`, `'4xl': '2.25rem'`
 - CSS utility classes: `.glass-panel`, `.glass-card`, `.glass-slab`, `.btn-cobalt`, `.btn-pill`
 
-- [ ] **Step 1: Update `tailwind.config.js` with new tokens**
-- [ ] **Step 2: Update `src/index.css` with canvas background, glass utilities, and button classes**
-- [ ] **Step 3: Run build verification**  
+- [x] **Step 1: Update `tailwind.config.js` with new tokens**
+- [x] **Step 2: Update `src/index.css` with canvas background, glass utilities, and button classes**
+- [x] **Step 3: Run build verification**  
   Run: `cd prototype/frontend && npm run build`  
   Expected: PASS (`tsc && vite build`)
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
   ```bash
   git add prototype/frontend/tailwind.config.js prototype/frontend/src/index.css
   git commit -m "feat(frontend): add asklepios glassmorphic tailwind tokens and utilities"
@@ -65,16 +65,16 @@
 - `MainMenuDrawer({ isOpen: boolean, onClose: () => void }): JSX.Element`
 - `Layout({ children }: { children?: ReactNode }): JSX.Element` (wraps content in framed floating canvas)
 
-- [ ] **Step 1: Create `prototype/frontend/src/components/MainMenuDrawer.tsx`**  
+- [x] **Step 1: Create `prototype/frontend/src/components/MainMenuDrawer.tsx`**  
   Implements slide-over drawer with platform modules, model info, benchmark shortcuts, and API docs.
-- [ ] **Step 2: Create `prototype/frontend/src/components/Navbar.tsx`**  
+- [x] **Step 2: Create `prototype/frontend/src/components/Navbar.tsx`**  
   Implements top bar with minimalist geometric logo `+`, lowercase typography, active route pills, benchmark disease chips, live status dot, and `Main Menu` trigger.
-- [ ] **Step 3: Update `prototype/frontend/src/components/Layout.tsx` and `prototype/frontend/src/App.tsx`**  
+- [x] **Step 3: Update `prototype/frontend/src/components/Layout.tsx` and `prototype/frontend/src/App.tsx`**  
   Replaces sidebar with floating framed container (`rounded-[32px]`, `shadow-2xl`) and top navbar.
-- [ ] **Step 4: Run build & lint verification**  
+- [x] **Step 4: Run build & lint verification**  
   Run: `cd prototype/frontend && npm run build && npm run lint`  
   Expected: PASS with 0 warnings/errors.
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   ```bash
   git add prototype/frontend/src/components/Navbar.tsx prototype/frontend/src/components/MainMenuDrawer.tsx prototype/frontend/src/components/Layout.tsx prototype/frontend/src/App.tsx
   git commit -m "feat(frontend): implement framed canvas shell, top navbar, and main menu drawer"
@@ -91,14 +91,14 @@
 **Interfaces:**
 - `GlassHero({ onSelectBenchmark: (orphaId: string) => void }): JSX.Element`
 
-- [ ] **Step 1: Implement `GlassHero.tsx`**  
+- [x] **Step 1: Implement `GlassHero.tsx`**  
   - Left column: "Precision Orphan Disease AI Therapeutics", clean copy, dual CTAs ("Try Benchmark (NPC)" pill + royal-blue squircle `+` button), benchmark disease chips.
   - Right column: Stacked 3D angled frosted glass slabs with cyan/ice-blue gradients (`from-sky-400/20 to-blue-600/30`), reflection lines, and live model telemetry chips (`98.2% AUROC`, `4,357 Diseases`, `GNN + Attention`).
-- [ ] **Step 2: Integrate `GlassHero` into `Dashboard.tsx` replacing the old dark indigo hero**
-- [ ] **Step 3: Run build & lint verification**  
+- [x] **Step 2: Integrate `GlassHero` into `Dashboard.tsx` replacing the old dark indigo hero**
+- [x] **Step 3: Run build & lint verification**  
   Run: `cd prototype/frontend && npm run build && npm run lint`  
   Expected: PASS
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
   ```bash
   git add prototype/frontend/src/components/GlassHero.tsx prototype/frontend/src/components/Dashboard.tsx
   git commit -m "feat(frontend): implement signature 3D frosted-glass hero component"
@@ -111,16 +111,16 @@
 **Files:**
 - Modify: `prototype/frontend/src/components/Dashboard.tsx`
 
-- [ ] **Step 1: Modernize the 4 metric cards**  
+- [x] **Step 1: Modernize the 4 metric cards**  
   Clean typography, soft icon containers, refined labels for Diseases (4,357), Approved Drugs (1,645), Prediction Engine (DualEncoder), and Safety Engine (FAERS).
-- [ ] **Step 2: Restyle the search input and collapsible advanced filters tray**  
+- [x] **Step 2: Restyle the search input and collapsible advanced filters tray**  
   Modern rounded search bar with glass borders, active filter indicator, and clean sliders/dropdowns.
-- [ ] **Step 3: Redesign the disease directory table**  
+- [x] **Step 3: Redesign the disease directory table**  
   Elevated card container, clean column headers, unmet need progress bars, gene tag badges, and chevron links.
-- [ ] **Step 4: Run build & lint verification**  
+- [x] **Step 4: Run build & lint verification**  
   Run: `cd prototype/frontend && npm run build && npm run lint`  
   Expected: PASS
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   ```bash
   git add prototype/frontend/src/components/Dashboard.tsx
   git commit -m "feat(frontend): modernize dashboard metrics, search filter, and disease table"
@@ -135,16 +135,16 @@
 - Modify: `prototype/frontend/src/components/CandidateList.tsx`
 - Modify: `prototype/frontend/src/components/CandidateDetail.tsx`
 
-- [ ] **Step 1: Update `DiseaseDetail.tsx`**  
+- [x] **Step 1: Update `DiseaseDetail.tsx`**  
   Clean hero card, phenotype ontology badges, gene targets, and CTA to candidate rankings.
-- [ ] **Step 2: Update `CandidateList.tsx`**  
+- [x] **Step 2: Update `CandidateList.tsx`**  
   Refined candidate rankings table with GNN score pills, ADMET safety rating meters, and modern inline clinician validation modal.
-- [ ] **Step 3: Update `CandidateDetail.tsx`**  
+- [x] **Step 3: Update `CandidateDetail.tsx`**  
   Sleek multi-column layout for molecule chemical properties, GNN explanation subgraphs, literature rationale, and ADMET radar.
-- [ ] **Step 4: Run build & lint verification**  
+- [x] **Step 4: Run build & lint verification**  
   Run: `cd prototype/frontend && npm run build && npm run lint`  
   Expected: PASS
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   ```bash
   git add prototype/frontend/src/components/DiseaseDetail.tsx prototype/frontend/src/components/CandidateList.tsx prototype/frontend/src/components/CandidateDetail.tsx
   git commit -m "feat(frontend): modernize disease detail and candidate exploration views"
@@ -159,16 +159,16 @@
 - Modify: `prototype/frontend/src/components/CaseStudies.tsx`
 - Modify: `prototype/frontend/src/components/DossierBuilder.tsx`
 
-- [ ] **Step 1: Polish `KGBrowser.tsx`**  
+- [x] **Step 1: Polish `KGBrowser.tsx`**  
   Framed Cytoscape canvas inside sleek glass panels, modern floating controls and node inspector.
-- [ ] **Step 2: Polish `CaseStudies.tsx`**  
+- [x] **Step 2: Polish `CaseStudies.tsx`**  
   Elevated clinical case study presentation (Niemann-Pick Type C & Cystic Fibrosis).
-- [ ] **Step 3: Polish `DossierBuilder.tsx`**  
+- [x] **Step 3: Polish `DossierBuilder.tsx`**  
   Clean IND regulatory dossier generator layout with PDF export buttons.
-- [ ] **Step 4: Run build & lint verification**  
+- [x] **Step 4: Run build & lint verification**  
   Run: `cd prototype/frontend && npm run build && npm run lint`  
   Expected: PASS
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   ```bash
   git add prototype/frontend/src/components/KGBrowser.tsx prototype/frontend/src/components/CaseStudies.tsx prototype/frontend/src/components/DossierBuilder.tsx
   git commit -m "feat(frontend): modernize kg browser, case studies, and dossier builder"
@@ -181,8 +181,8 @@
 **Files:**
 - Full frontend repository
 
-- [ ] **Step 1: Run full production build**  
+- [x] **Step 1: Run full production build**  
   Run: `cd prototype/frontend && npm run build`
-- [ ] **Step 2: Run ESLint**  
+- [x] **Step 2: Run ESLint**  
   Run: `cd prototype/frontend && npm run lint`
-- [ ] **Step 3: Final git status check and verification**
+- [x] **Step 3: Final git status check and verification**
