@@ -15,6 +15,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml ./
 COPY README.md ./
 
+# Create package structure stubs for editable install
+RUN mkdir -p app/api/v1 app/core app/data app/db app/ml app/models app/services && \
+    touch app/__init__.py app/api/__init__.py app/api/v1/__init__.py app/core/__init__.py app/db/__init__.py app/ml/__init__.py app/models/__init__.py app/services/__init__.py
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -e ".[dev]"
 

@@ -45,8 +45,6 @@ coverage.xml
 node_modules/
 .vite/
 
-# Docker
-.dockerignore
 
 # Secrets
 .env
