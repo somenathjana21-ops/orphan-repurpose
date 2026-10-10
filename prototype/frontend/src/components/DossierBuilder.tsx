@@ -77,26 +77,26 @@ export function DossierBuilder() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       {/* Header Banner */}
-      <div className="card p-7 sm:p-8 bg-gradient-to-br from-white via-white to-indigo-50/40 border border-slate-200">
+      <div className="glass-card p-7 sm:p-9 bg-gradient-to-br from-white via-white to-blue-50/20 border border-slate-200/90 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/80 text-indigo-700 text-xs font-semibold">
-              <FileText className="h-3.5 w-3.5" />
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-200/60 shadow-2xs">
+              <FileText className="h-3.5 w-3.5 text-blue-600" />
               <span>Regulatory Document Generator</span>
             </div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
               Orphan Designation Dossier Builder
             </h1>
-            <p className="text-slate-600 text-sm max-w-2xl leading-relaxed">
+            <p className="text-slate-600 text-sm leading-relaxed">
               Compile evidence-based regulatory dossiers conforming to FDA/EMA Orphan Drug Designation requirements, backed by mechanistic GNN predictions, safety alerts, and citation trails.
             </p>
           </div>
 
           <button
             onClick={loadNpcPreset}
-            className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 shrink-0"
+            className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 shrink-0 rounded-xl"
           >
             <Zap className="h-3.5 w-3.5 text-amber-500" />
             <span>Pre-fill NPC Demo</span>
@@ -105,8 +105,8 @@ export function DossierBuilder() {
       </div>
 
       {error && (
-        <div className="card p-4 bg-rose-50 border-rose-200 text-rose-800 text-sm flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+        <div className="p-4 bg-rose-50 border border-rose-200/80 rounded-2xl text-rose-800 text-xs flex items-start gap-3">
+          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
           <div>
             <strong>Error generating dossier:</strong> {error}
           </div>
@@ -117,9 +117,9 @@ export function DossierBuilder() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Step 1 & 2 Inputs */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="card p-6 space-y-5">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-100">
-              <span className="h-6 w-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+          <div className="glass-card p-6 sm:p-7 space-y-5">
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-100 uppercase tracking-wider">
+              <span className="h-6 w-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
                 1
               </span>
               Target Disease
@@ -142,9 +142,9 @@ export function DossierBuilder() {
             </div>
           </div>
 
-          <div className="card p-6 space-y-5">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-100">
-              <span className="h-6 w-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+          <div className="glass-card p-6 sm:p-7 space-y-5">
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-100 uppercase tracking-wider">
+              <span className="h-6 w-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
                 2
               </span>
               Repurposing Candidates to Include
@@ -169,7 +169,7 @@ export function DossierBuilder() {
                 <button
                   type="button"
                   onClick={handleAddCandidate}
-                  className="btn-secondary text-xs px-3.5"
+                  className="btn-secondary text-xs px-3.5 rounded-xl"
                 >
                   Add
                 </button>
@@ -180,13 +180,13 @@ export function DossierBuilder() {
                 {candidateIds.map((id, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200/80 font-mono text-xs font-semibold"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/80 font-mono text-xs font-semibold"
                   >
                     <span>{id}</span>
                     <button
                       type="button"
                       onClick={() => setCandidateIds(candidateIds.filter((_, i) => i !== index))}
-                      className="text-indigo-400 hover:text-indigo-900 transition-colors cursor-pointer"
+                      className="text-blue-400 hover:text-blue-900 transition-colors cursor-pointer text-sm font-bold"
                       title="Remove"
                     >
                       ×
@@ -200,15 +200,15 @@ export function DossierBuilder() {
 
         {/* Step 3: Sections checklist & Generate CTA */}
         <div className="space-y-6">
-          <div className="card p-6 space-y-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-100">
-              <span className="h-6 w-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+          <div className="glass-card p-6 sm:p-7 space-y-4">
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-100 uppercase tracking-wider">
+              <span className="h-6 w-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
                 3
               </span>
               Dossier Sections
             </h2>
 
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {allSections.map((sec) => (
                 <label
                   key={sec.id}
@@ -224,18 +224,18 @@ export function DossierBuilder() {
                         setIncludeSections(includeSections.filter((s) => s !== sec.id))
                       }
                     }}
-                    className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
                   <span className="font-medium leading-tight">{sec.label}</span>
                 </label>
               ))}
             </div>
 
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setIncludeSections(allSections.map((s) => s.id))}
-                className="text-xs text-indigo-600 font-semibold hover:underline"
+                className="text-xs text-blue-600 font-semibold hover:underline"
               >
                 Select All
               </button>
@@ -252,7 +252,7 @@ export function DossierBuilder() {
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating || !diseaseId || candidateIds.length === 0}
-                className="btn-primary w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 shadow-md shadow-indigo-500/20"
+                className="btn-cobalt w-full py-3 text-xs font-semibold flex items-center justify-center gap-2 rounded-xl shadow-md shadow-blue-500/25"
               >
                 <Sparkles className="h-4 w-4" />
                 <span>{isGenerating ? 'Compiling Dossier...' : 'Generate Regulatory Dossier'}</span>
@@ -264,7 +264,7 @@ export function DossierBuilder() {
 
       {/* Generated Dossier Preview Output */}
       {dossier && (
-        <div className="card p-7 space-y-6 border-indigo-200 bg-gradient-to-br from-white to-slate-50 shadow-md">
+        <div className="glass-card p-7 space-y-6 border-blue-200 bg-gradient-to-br from-white to-slate-50 shadow-md">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -296,7 +296,7 @@ export function DossierBuilder() {
                     a.click()
                     URL.revokeObjectURL(url)
                   }}
-                  className="btn-primary text-xs py-2 px-3.5 flex items-center gap-1.5 font-semibold"
+                  className="btn-cobalt text-xs py-2 px-3.5 flex items-center gap-1.5 font-semibold rounded-xl"
                 >
                   <Download className="h-3.5 w-3.5" />
                   <span>Download PDF</span>
@@ -315,7 +315,7 @@ export function DossierBuilder() {
                   a.click()
                   URL.revokeObjectURL(url)
                 }}
-                className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-semibold"
+                className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-semibold rounded-xl"
               >
                 <Download className="h-3.5 w-3.5 text-slate-500" />
                 <span>Export JSON</span>
@@ -324,7 +324,7 @@ export function DossierBuilder() {
           </div>
 
           {/* Dossier Structured Content Preview */}
-          <div className="bg-white rounded-xl p-5 border border-slate-200/80 space-y-4 max-h-96 overflow-y-auto scrollbar-thin font-mono text-xs text-slate-700">
+          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 space-y-4 max-h-96 overflow-y-auto scrollbar-thin font-mono text-xs text-slate-700">
             <div className="font-sans">
               <h4 className="text-sm font-bold text-slate-900 mb-1">
                 Executive Scientific Summary
@@ -334,7 +334,7 @@ export function DossierBuilder() {
                   'Scientific justification for orphan drug designation based on biological plausibility, unmet need, and drug mechanism.'}
               </p>
             </div>
-            <pre className="bg-slate-50 p-3.5 rounded-lg border border-slate-100 overflow-x-auto text-[11px] leading-relaxed text-slate-600">
+            <pre className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 overflow-x-auto text-[11px] leading-relaxed text-slate-600">
               {JSON.stringify(dossier.dossier_json, null, 2)}
             </pre>
           </div>
