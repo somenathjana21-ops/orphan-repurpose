@@ -3,6 +3,14 @@ from typing import Optional
 import os
 
 
+from pathlib import Path
+
+_BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+_PROTOTYPE_DIR = _BACKEND_DIR.parent
+_DEFAULT_DATA_DIR = _PROTOTYPE_DIR / "data"
+_DEFAULT_MODELS_DIR = _PROTOTYPE_DIR / "models"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -16,20 +24,21 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///./data/orphan_repurpose.db"
-    KUZU_DB_PATH: str = "../data/kuzu_db"
-    CHROMA_DB_PATH: str = "./data/chroma_db"
+    DATABASE_URL: str = f"sqlite+aiosqlite:///{(_BACKEND_DIR / 'data' / 'orphan_repurpose.db').as_posix()}"
+    KUZU_DB_PATH: str = str(_DEFAULT_DATA_DIR / "kuzu_db")
+    CHROMA_DB_PATH: str = str(_DEFAULT_DATA_DIR / "chroma_db")
 
     # Data paths
-    DATA_DIR: str = "../data"
-    RAW_DATA_DIR: str = "../data/raw"
-    PROCESSED_DATA_DIR: str = "../data/processed"
-    MODELS_DIR: str = "../models"
+    DATA_DIR: str = str(_DEFAULT_DATA_DIR)
+    RAW_DATA_DIR: str = str(_DEFAULT_DATA_DIR / "raw")
+    PROCESSED_DATA_DIR: str = str(_DEFAULT_DATA_DIR / "processed")
+    MODELS_DIR: str = str(_DEFAULT_MODELS_DIR)
 
     # ML Models
-    INDICATION_MODEL_PATH: str = "../models/indication_model.pt"
-    KG_EMBEDDINGS_PATH: str = "../models/kg_embeddings.pkl"
-    BIOMISTRAL_MODEL_PATH: str = "../models/bioMistral-7b.Q4_K_M.gguf"
+    INDICATION_MODEL_PATH: str = str(_DEFAULT_MODELS_DIR / "indication_model.pt")
+    KG_EMBEDDINGS_PATH: str = str(_DEFAULT_MODELS_DIR / "kg_embeddings.pkl")
+    BIOMISTRAL_MODEL_PATH: str = str(_DEFAULT_MODELS_DIR / "bioMistral-7b.Q4_K_M.gguf")
+
 
     # External APIs (optional for prototype)
     PUBMED_API_KEY: Optional[str] = None

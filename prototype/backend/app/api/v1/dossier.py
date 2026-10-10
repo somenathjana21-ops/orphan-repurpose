@@ -11,8 +11,9 @@ import base64
 from app.models.disease import (
     DossierRequest, DossierResponse, DossierJSON, CredibilityMap,
     DiseaseDetail, Candidate, DiseaseSearchResult, Gene, Pathway,
-    SafetyFlags, FAERSSignal, KGPath,
+    SafetyFlags, FAERSSignal, KGPath, KGPathNode, KGPathEdge,
 )
+
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -267,8 +268,8 @@ def _get_mock_disease(orpha_id: str) -> Optional[DiseaseDetail]:
             omim_ids=["#607623"],
             mondo_id="MONDO:0005256",
             icar_id="ICAR:12345",
-            created_at="2026-10-01T00:00:00Z",
-            updated_at="2026-10-08T00:00:00Z",
+            created_at=datetime(2026, 10, 1, 0, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 10, 8, 0, 0, 0, tzinfo=timezone.utc),
         ),
         "ORPHA:793": DiseaseDetail(
             orpha_id="ORPHA:793",
@@ -290,8 +291,8 @@ def _get_mock_disease(orpha_id: str) -> Optional[DiseaseDetail]:
             omim_ids=["#602421"],
             mondo_id="MONDO:0005144",
             icar_id="ICAR:12346",
-            created_at="2026-10-01T00:00:00Z",
-            updated_at="2026-10-08T00:00:00Z",
+            created_at=datetime(2026, 10, 1, 0, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 10, 8, 0, 0, 0, tzinfo=timezone.utc),
         ),
     }
     return diseases.get(orpha_id)
@@ -319,13 +320,13 @@ def _get_mock_candidates(disease_id: str) -> List[Candidate]:
                 kg_paths=[
                     KGPath(
                         nodes=[
-                            {"id": "CHEMBL1200", "type": "drug", "name": "Miglustat", "properties": {}},
-                            {"id": "GO:0008603", "type": "biological_process", "name": "glucosylceramide metabolic process", "properties": {}},
-                            {"id": "HP:0007325", "type": "phenotype", "name": "Hepatosplenomegaly", "properties": {}},
+                            KGPathNode(id="CHEMBL1200", type="drug", name="Miglustat", properties={}),
+                            KGPathNode(id="GO:0008603", type="biological_process", name="glucosylceramide metabolic process", properties={}),
+                            KGPathNode(id="HP:0007325", type="phenotype", name="Hepatosplenomegaly", properties={}),
                         ],
                         edges=[
-                            {"source": "CHEMBL1200", "target": "GO:0008603", "type": "inhibits", "weight": 0.9},
-                            {"source": "GO:0008603", "target": "HP:0007325", "type": "associated_with", "weight": 0.8},
+                            KGPathEdge(source="CHEMBL1200", target="GO:0008603", type="inhibits", weight=0.9),
+                            KGPathEdge(source="GO:0008603", target="HP:0007325", type="associated_with", weight=0.8),
                         ],
                         score=0.85,
                     )
@@ -351,13 +352,13 @@ def _get_mock_candidates(disease_id: str) -> List[Candidate]:
                 kg_paths=[
                     KGPath(
                         nodes=[
-                            {"id": "CHEMBL345", "type": "drug", "name": "Sirolimus", "properties": {}},
-                            {"id": "GO:0016236", "type": "biological_process", "name": "macroautophagy", "properties": {}},
-                            {"id": "HP:0007325", "type": "phenotype", "name": "Hepatosplenomegaly", "properties": {}},
+                            KGPathNode(id="CHEMBL345", type="drug", name="Sirolimus", properties={}),
+                            KGPathNode(id="GO:0016236", type="biological_process", name="macroautophagy", properties={}),
+                            KGPathNode(id="HP:0007325", type="phenotype", name="Hepatosplenomegaly", properties={}),
                         ],
                         edges=[
-                            {"source": "CHEMBL345", "target": "GO:0016236", "type": "inhibits", "weight": 0.8},
-                            {"source": "GO:0016236", "target": "HP:0007325", "type": "associated_with", "weight": 0.7},
+                            KGPathEdge(source="CHEMBL345", target="GO:0016236", type="inhibits", weight=0.8),
+                            KGPathEdge(source="GO:0016236", target="HP:0007325", type="associated_with", weight=0.7),
                         ],
                         score=0.72,
                     )
@@ -382,30 +383,27 @@ async def generate_dossier(request: DossierRequest):
             from app.services.indication_service import get_indication_service
             from app.api.v1.diseases import _DISEASE_BY_ID, _to_detail
             
-            disease = _to_detail(_DISEASE_BY_ID.get(request.disease_id, {}))
-            if not disease:
-                raise HTTPException(status_code=404, detail=f"Disease {request.disease_id} not found")
+            raw_disease = _DISEASE_BY_ID.get(request.disease_id)
+            if not raw_disease:
+                raise ValueError(f"Disease {request.disease_id} not in loaded diseases")
+            disease = _to_detail(raw_disease)
             
             # Get real candidates from model
             ind_svc = get_indication_service()
+            candidates = []
             if ind_svc.is_ready():
-                umls_key = f"UMLS:{disease.description}" if disease.description else disease.orpha_id
-                # Try to find the disease key in the model
-                scores = []
-                for key in ind_svc.disease_map:
-                    if request.disease_id in key or disease.name in key:
-                        scores = ind_svc.score_drugs(key, top_k=20)
-                        break
+                scores = ind_svc.score_all_for_orpha(request.disease_id, top_k=20)
+                if not scores:
+                    for key in ind_svc.disease_map:
+                        if request.disease_id in key or disease.name in key:
+                            scores = ind_svc.score_drugs(key)[:20]
+                            break
                 
                 if scores:
                     from app.api.v1.candidates import _candidate_from_score
                     candidates = [_candidate_from_score(i + 1, s) for i, s in enumerate(scores)]
                     if request.candidate_ids:
                         candidates = [c for c in candidates if c.candidate_id in request.candidate_ids]
-                else:
-                    candidates = []
-            else:
-                candidates = []
             
             sections = request.include_sections or ["background", "drug_profile", "mechanistic_rationale", "preclinical_plan", "regulatory_strategy"]
             
@@ -421,11 +419,13 @@ async def generate_dossier(request: DossierRequest):
             logger.warning("real_data_dossier_failed_using_mock", error=str(e))
         
         # Fallback to mock data
-        disease = _get_mock_disease(request.disease_id)
-        if not disease:
+        mock_disease = _get_mock_disease(request.disease_id)
+        if not mock_disease:
             raise HTTPException(status_code=404, detail=f"Disease {request.disease_id} not found")
+        disease = mock_disease
         
         candidates = _get_mock_candidates(request.disease_id)
+
         if request.candidate_ids:
             candidates = [c for c in candidates if c.candidate_id in request.candidate_ids]
         

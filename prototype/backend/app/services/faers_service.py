@@ -7,7 +7,7 @@ and a built-in fallback dataset for when the API is unavailable.
 from __future__ import annotations
 
 import time
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 import httpx
 import structlog
@@ -20,7 +20,8 @@ OPENFDA_BASE_URL = "https://api.fda.gov/drug/event.json"
 
 # Built-in fallback dataset: realistic contingency table counts (a, b, c, d)
 # for common drugs when the openFDA API is unavailable.
-BUILTIN_FAERS_DATA: Dict[str, List[Dict[str, int]]] = {
+BUILTIN_FAERS_DATA: Dict[str, List[Dict[str, Any]]] = {
+
     "miglustat": [
         {"event": "Diarrhea", "meddra_pt": "Diarrhea", "a": 45, "b": 120, "c": 800, "d": 50000},
         {"event": "Nausea", "meddra_pt": "Nausea", "a": 30, "b": 135, "c": 600, "d": 50200},
@@ -53,8 +54,9 @@ class FaersService:
     """
 
     def __init__(self, cache_ttl: int = 3600):
-        self._cache: Dict[str, tuple] = {}
+        self._cache: Dict[str, Tuple[float, Dict[str, ContingencyTable]]] = {}
         self._ttl = cache_ttl
+
 
     async def get_faers_data(self, drug_name: str) -> Dict[str, ContingencyTable]:
         """Get FAERS contingency tables for a drug.

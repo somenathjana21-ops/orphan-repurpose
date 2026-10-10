@@ -1,9 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional
+from datetime import datetime, timezone
+from typing import Any, List, Optional
 from pathlib import Path
+from fastapi import APIRouter, HTTPException, Query
 import structlog
 import pandas as pd
 
+
+from app.core.config import settings
 from app.models.disease import (
     DiseaseSearchResult,
     DiseaseDetail,
@@ -20,6 +23,7 @@ router = APIRouter()
 # Disease data loaded from the processed Orphanet parquet
 # ---------------------------------------------------------------------------
 _ORPHA_PARQUET_CANDIDATES = [
+    Path(settings.PROCESSED_DATA_DIR) / "orpha" / "orpha_diseases.parquet",
     Path("../data/processed/orpha/orpha_diseases.parquet"),
     Path("data/processed/orpha/orpha_diseases.parquet"),
 ]
@@ -31,8 +35,8 @@ _UMLS_TO_ORPHA: dict[str, str] = {}
 _FALLBACK_DISEASES = [
     {
         "id": "ORPHA:635", "name": "Niemann-Pick disease type C", "prevalence": 0.5,
-        "prevalence_category": "1/200,000 - 1/2,000", "inheritance": "Autosomal recessive",
-        "age_of_onset": "Infantile|Juvenile|Adult",
+        "prevalence_category": "1/200,000 - 1/2,000", "inheritance": ["Autosomal recessive"],
+        "age_of_onset": ["Infantile", "Juvenile", "Adult"],
         "genes": [
             {"hgnc_id": "HGNC:7694", "symbol": "NPC1", "name": "NPC intracellular cholesterol transporter 1"},
             {"hgnc_id": "HGNC:14133", "symbol": "NPC2", "name": "NPC intracellular cholesterol transporter 2"},
@@ -45,8 +49,8 @@ _FALLBACK_DISEASES = [
     },
     {
         "id": "ORPHA:793", "name": "Cystic fibrosis", "prevalence": 3.5,
-        "prevalence_category": "1/200,000 - 1/2,000", "inheritance": "Autosomal recessive",
-        "age_of_onset": "Neonatal|Infantile|Childhood",
+        "prevalence_category": "1/200,000 - 1/2,000", "inheritance": ["Autosomal recessive"],
+        "age_of_onset": ["Neonatal", "Infantile", "Childhood"],
         "genes": [{"hgnc_id": "HGNC:2649", "symbol": "CFTR", "name": "Cystic fibrosis transmembrane conductance regulator"}],
         "phenotypes": ["Chronic cough", "Recurrent pulmonary infections", "Pancreatic insufficiency"],
         "existing_treatments": ["Ivacaftor"], "unmet_need_score": 0.60,
@@ -55,8 +59,8 @@ _FALLBACK_DISEASES = [
     },
     {
         "id": "ORPHA:98065", "name": "Huntington disease", "prevalence": 5.0,
-        "prevalence_category": "1/200,000 - 1/2,000", "inheritance": "Autosomal dominant",
-        "age_of_onset": "Adult",
+        "prevalence_category": "1/200,000 - 1/2,000", "inheritance": ["Autosomal dominant"],
+        "age_of_onset": ["Adult"],
         "genes": [{"hgnc_id": "HGNC:4848", "symbol": "HTT", "name": "Huntingtin"}],
         "phenotypes": ["Chorea", "Cognitive decline", "Psychiatric disturbances"],
         "existing_treatments": ["Tetrabenazine"], "unmet_need_score": 0.75,
@@ -64,6 +68,7 @@ _FALLBACK_DISEASES = [
         "umls_cui": "C0020179",
     },
 ]
+
 
 
 def _compute_unmet_need(prevalence: Optional[float], n_treatments: int, n_genes: int) -> float:
@@ -161,18 +166,43 @@ ORPHA_TO_UMLS = {d["id"]: f"UMLS:{d['umls_cui']}" for d in _DISEASES if d.get("u
 UMLS_TO_ORPHA = {v: k for k, v in ORPHA_TO_UMLS.items()}
 
 
+def _normalize_str_list(val: Any) -> list[str]:
+    """Ensure a string or list field is returned as a clean list of strings."""
+    if not val:
+        return []
+    if isinstance(val, list):
+        return [str(x).strip() for x in val if x and str(x).strip()]
+    if isinstance(val, str):
+        if "|" in val:
+            return [x.strip() for x in val.split("|") if x.strip()]
+        return [val.strip()] if val.strip() else []
+    return [str(val).strip()]
+
+
+def _parse_datetime(val: Any, default_iso: str = "2026-10-01T00:00:00+00:00") -> datetime:
+    """Parse string or datetime object into a datetime instance."""
+    if isinstance(val, datetime):
+        return val
+    if isinstance(val, str) and val.strip():
+        try:
+            return datetime.fromisoformat(val.replace("Z", "+00:00"))
+        except Exception:
+            pass
+    return datetime.fromisoformat(default_iso)
+
+
 def _to_search_result(d: dict) -> DiseaseSearchResult:
     return DiseaseSearchResult(
         orpha_id=d["id"],
         name=d["name"],
         prevalence=d.get("prevalence"),
         prevalence_category=d.get("prevalence_category"),
-        inheritance=d.get("inheritance") or [],
-        age_of_onset=d.get("age_of_onset") or [],
+        inheritance=_normalize_str_list(d.get("inheritance")),
+        age_of_onset=_normalize_str_list(d.get("age_of_onset")),
         genes=[Gene(**g) for g in d.get("genes", [])],
         pathways=[Pathway(**p) for p in d.get("pathways", [])],
-        phenotypes=d.get("phenotypes") or [],
-        existing_treatments=d.get("existing_treatments") or [],
+        phenotypes=_normalize_str_list(d.get("phenotypes")),
+        existing_treatments=_normalize_str_list(d.get("existing_treatments")),
         unmet_need_score=d.get("unmet_need_score"),
     )
 
@@ -183,21 +213,22 @@ def _to_detail(d: dict) -> DiseaseDetail:
         name=d["name"],
         prevalence=d.get("prevalence"),
         prevalence_category=d.get("prevalence_category"),
-        inheritance=d.get("inheritance") or [],
-        age_of_onset=d.get("age_of_onset") or [],
+        inheritance=_normalize_str_list(d.get("inheritance")),
+        age_of_onset=_normalize_str_list(d.get("age_of_onset")),
         genes=[Gene(**g) for g in d.get("genes", [])],
         pathways=[Pathway(**p) for p in d.get("pathways", [])],
-        phenotypes=d.get("phenotypes") or [],
-        existing_treatments=d.get("existing_treatments") or [],
+        phenotypes=_normalize_str_list(d.get("phenotypes")),
+        existing_treatments=_normalize_str_list(d.get("existing_treatments")),
         unmet_need_score=d.get("unmet_need_score"),
         description=d.get("description"),
-        synonyms=[d["name"]],
-        omim_ids=d.get("omim_ids") or [],
+        synonyms=_normalize_str_list(d.get("synonyms") or [d.get("name", "")]),
+        omim_ids=_normalize_str_list(d.get("omim_ids")),
         mondo_id=d.get("mondo_id"),
         icar_id=d.get("icar_id"),
-        created_at="2026-10-01T00:00:00Z",
-        updated_at="2026-10-08T00:00:00Z",
+        created_at=_parse_datetime(d.get("created_at"), "2026-10-01T00:00:00+00:00"),
+        updated_at=_parse_datetime(d.get("updated_at"), "2026-10-08T00:00:00+00:00"),
     )
+
 
 
 @router.get("", response_model=DiseaseSearchResponse)

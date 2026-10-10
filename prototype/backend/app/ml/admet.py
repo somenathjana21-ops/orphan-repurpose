@@ -160,8 +160,10 @@ class ADMETPredictor:
         classifications = {}
         for endpoint, value in predictions.items():
             info = ADMET_ENDPOINTS.get(endpoint, {})
-            threshold = info.get("threshold", 0.5)
-            direction = info.get("direction", "low")
+            threshold = float(info["threshold"]) if "threshold" in info else 0.5
+            direction = str(info.get("direction", "low"))
+
+
 
             if direction == "high":
                 # Higher is better

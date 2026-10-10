@@ -230,6 +230,16 @@ class TestDossierEndpoints:
             assert "dossier_json" in data
             assert "audit_trail_id" in data
 
+    @pytest.mark.asyncio
+    async def test_generate_dossier_unknown_disease(self, async_client: AsyncClient):
+        response = await async_client.post("/api/v1/dossier/generate", json={
+            "disease_id": "ORPHA:NONEXISTENT9999",
+            "candidate_ids": ["cand_001"],
+            "include_sections": ["background"]
+        })
+        assert response.status_code == 404
+
+
 
 class TestKGEndpointsExtended:
     @pytest.mark.asyncio

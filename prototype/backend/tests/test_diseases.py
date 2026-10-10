@@ -48,3 +48,32 @@ class TestDiseaseModels:
         assert detail.description == "A rare genetic disorder..."
         assert "NPC" in detail.synonyms
         assert detail.mondo_id == "MONDO:0009593"
+
+    def test_to_detail_with_string_and_pipe_delimited_fields(self):
+        from app.api.v1.diseases import _to_detail
+        raw_record = {
+            "id": "ORPHA:9999",
+            "name": "Test Disease",
+            "inheritance": "Autosomal recessive",
+            "age_of_onset": "Infantile|Juvenile|Adult",
+            "genes": [],
+            "pathways": [],
+            "phenotypes": ["Symptom A"],
+            "existing_treatments": ["Drug A"],
+            "unmet_need_score": 0.5,
+            "created_at": "2026-10-01T00:00:00Z",
+            "updated_at": "2026-10-08T00:00:00Z",
+        }
+        detail = _to_detail(raw_record)
+        assert isinstance(detail, DiseaseDetail)
+        assert detail.inheritance == ["Autosomal recessive"]
+        assert detail.age_of_onset == ["Infantile", "Juvenile", "Adult"]
+
+    def test_fallback_diseases_validity(self):
+        from app.api.v1.diseases import _FALLBACK_DISEASES, _to_detail
+        assert len(_FALLBACK_DISEASES) > 0
+        for raw in _FALLBACK_DISEASES:
+            detail = _to_detail(raw)
+            assert isinstance(detail, DiseaseDetail)
+            assert isinstance(detail.inheritance, list)
+            assert isinstance(detail.age_of_onset, list)

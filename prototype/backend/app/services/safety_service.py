@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import structlog
 from typing import Dict, List, Optional, Any
-from pathlib import Path
 
 from app.ml.faers import FAERSAnalyzer, DisproportionalityResult, ContingencyTable
+
 from app.ml.admet import ADMETPredictor, ADMET_ENDPOINTS
 from app.services.faers_service import FaersService
 
@@ -101,12 +101,13 @@ class SafetyService:
                 result = self.faers_analyzer.analyze(drug_id, drug_name, event, meddra_pt, table)
                 results.append(result)
         elif reports:
-            tables = merge_faers_reports(reports)
-            for (did, event), table in tables.items():
+            merged_tables = merge_faers_reports(reports)
+            for (did, event), table in merged_tables.items():
                 if did != drug_id:
                     continue
                 if table.a < self.faers_analyzer.min_reports:
                     continue
+
 
                 # Get meddra_pt from reports
                 meddra_pt = event
@@ -161,8 +162,10 @@ class SafetyService:
         # From ADMET
         for endpoint, value in admet_predictions.items():
             info = ADMET_ENDPOINTS.get(endpoint, {})
-            threshold = info.get("threshold", 0.5)
-            direction = info.get("direction", "low")
+            threshold = float(info["threshold"]) if "threshold" in info else 0.5
+            direction = str(info.get("direction", "low"))
+
+
 
             if direction == "low" and value > threshold * 2:
                 contraindications.append(f"High {info.get('name', endpoint)} risk")

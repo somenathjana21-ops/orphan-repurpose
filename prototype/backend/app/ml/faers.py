@@ -245,8 +245,9 @@ def compute_2x2_table(
 
 def merge_faers_reports(
     reports: List[Dict[str, Any]],
-) -> Dict[Tuple[str, str], Dict[str, int]]:
+) -> Dict[Tuple[str, str], ContingencyTable]:
     """Aggregate FAERS reports into drug-event count pairs.
+
 
     Each report: {drug_id, drug_name, event, meddra_pt, ...}
     Returns: {(drug_id, event): {a, b, c, d}}
