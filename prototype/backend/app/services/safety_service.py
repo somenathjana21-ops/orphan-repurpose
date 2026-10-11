@@ -10,6 +10,7 @@ from threading import Lock
 from typing import Any
 
 import structlog
+
 from app.ml.admet import ADMET_ENDPOINTS, ADMETPredictor
 from app.ml.faers import ContingencyTable, DisproportionalityResult, FAERSAnalyzer
 from app.services.faers_service import FaersService
@@ -106,19 +107,18 @@ class SafetyService:
                 results.append(result)
         elif reports:
             merged_tables = merge_faers_reports(reports)
+            meddra_by_event = {}
+            for report in reports:
+                if report.get("drug_id") == drug_id:
+                    event = report.get("event")
+                    meddra_by_event.setdefault(event, report.get("meddra_pt", event))
             for (did, event), table in merged_tables.items():
                 if did != drug_id:
                     continue
                 if table.a < self.faers_analyzer.min_reports:
                     continue
 
-                # Get meddra_pt from reports
-                meddra_pt = event
-                for r in reports:
-                    if r.get("drug_id") == drug_id and r.get("event") == event:
-                        meddra_pt = r.get("meddra_pt", event)
-                        break
-
+                meddra_pt = meddra_by_event[event]
                 result = self.faers_analyzer.analyze(drug_id, drug_name, event, meddra_pt, table)
                 results.append(result)
 

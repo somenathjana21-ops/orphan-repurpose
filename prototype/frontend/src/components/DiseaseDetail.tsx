@@ -20,18 +20,6 @@ export function DiseaseDetail() {
     enabled: !!orphaId,
   })
 
-  const { data: genes, isLoading: genesLoading } = useQuery({
-    queryKey: ['disease-genes', orphaId],
-    queryFn: () => diseasesApi.getGenes(orphaId),
-    enabled: !!orphaId,
-  })
-
-  const { data: pathways, isLoading: pathwaysLoading } = useQuery({
-    queryKey: ['disease-pathways', orphaId],
-    queryFn: () => diseasesApi.getPathways(orphaId),
-    enabled: !!orphaId,
-  })
-
   if (error) {
     return (
       <div className="glass-card max-w-xl mx-auto my-12 p-8 text-center">
@@ -202,37 +190,31 @@ export function DiseaseDetail() {
                 <Dna className="h-4 w-4" />
               </div>
               <h2 className="text-base font-bold text-slate-900">
-                Associated Genes ({genes?.length || disease.genes?.length || 0})
+                Associated Genes ({disease.genes.length})
               </h2>
             </div>
             <span className="text-xs text-slate-400 font-mono">HGNC Curated</span>
           </div>
 
-          {genesLoading ? (
-            <p className="text-xs text-slate-400 py-4">Querying gene annotations...</p>
-          ) : (
-            <div className="space-y-3">
-              {(genes && genes.length > 0) || (disease.genes && disease.genes.length > 0) ? (
-                <div className="flex flex-wrap gap-2">
-                  {(genes && genes.length > 0 ? genes : disease.genes.map((g) => g.symbol)).map(
-                    (sym, idx) => (
-                      <div
-                        key={idx}
-                        className="px-3 py-1.5 rounded-xl bg-purple-50/80 border border-purple-200/70 text-purple-900 font-mono text-xs font-bold flex items-center gap-2"
-                      >
-                        <span>{sym}</span>
-                        <span className="text-[10px] text-purple-500 font-normal">HGNC</span>
-                      </div>
-                    )
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500 py-3">
-                  No single-gene Mendelian driver cataloged; condition may be polygenic or complex.
-                </p>
-              )}
-            </div>
-          )}
+          <div className="space-y-3">
+            {disease.genes.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {disease.genes.map((gene, idx) => (
+                  <div
+                    key={idx}
+                    className="px-3 py-1.5 rounded-xl bg-purple-50/80 border border-purple-200/70 text-purple-900 font-mono text-xs font-bold flex items-center gap-2"
+                  >
+                    <span>{gene.symbol}</span>
+                    <span className="text-[10px] text-purple-500 font-normal">HGNC</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 py-3">
+                No single-gene Mendelian driver cataloged; condition may be polygenic or complex.
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Pathways Card */}
@@ -243,37 +225,31 @@ export function DiseaseDetail() {
                 <Network className="h-4 w-4" />
               </div>
               <h2 className="text-base font-bold text-slate-900">
-                Reactome Biological Pathways ({pathways?.length || disease.pathways?.length || 0})
+                Reactome Biological Pathways ({disease.pathways.length})
               </h2>
             </div>
             <span className="text-xs text-slate-400 font-mono">Reactome</span>
           </div>
 
-          {pathwaysLoading ? (
-            <p className="text-xs text-slate-400 py-4">Querying pathway graph...</p>
-          ) : (
-            <div className="space-y-2">
-              {(pathways && pathways.length > 0) || (disease.pathways && disease.pathways.length > 0) ? (
-                (pathways && pathways.length > 0 ? pathways : disease.pathways.map((p) => p.name)).map(
-                  (name, idx) => (
-                    <div
-                      key={idx}
-                      className="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/60 text-xs text-slate-700 flex items-center justify-between"
-                    >
-                      <span className="font-medium truncate max-w-sm">{name}</span>
-                      <span className="text-[10px] font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                        Pathway
-                      </span>
-                    </div>
-                  )
-                )
-              ) : (
-                <p className="text-xs text-slate-500 py-3">
-                  No curated Reactome pathways directly attached to this disease node.
-                </p>
-              )}
-            </div>
-          )}
+          <div className="space-y-2">
+            {disease.pathways.length > 0 ? (
+              disease.pathways.map((pathway, idx) => (
+                <div
+                  key={idx}
+                  className="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/60 text-xs text-slate-700 flex items-center justify-between"
+                >
+                  <span className="font-medium truncate max-w-sm">{pathway.name}</span>
+                  <span className="text-[10px] font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                    Pathway
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-slate-500 py-3">
+                No curated Reactome pathways directly attached to this disease node.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

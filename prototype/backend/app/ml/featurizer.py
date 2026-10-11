@@ -106,11 +106,15 @@ def _hash_features(smiles: str, max_atoms: int = 16) -> tuple[torch.Tensor, torc
     """Deterministic fallback: derive a small graph from a SMILES hash."""
     digest = hashlib.sha256(smiles.encode()).digest()
     n_atoms = 4 + (digest[0] % (max_atoms - 3))
-    feats = torch.zeros(n_atoms, ATOM_FEATURE_DIM)
-    for i in range(n_atoms):
-        for j in range(ATOM_FEATURE_DIM):
-            byte = digest[(i * ATOM_FEATURE_DIM + j) % len(digest)]
-            feats[i, j] = byte / 255.0
+    feats = torch.tensor(
+        [
+            [
+                digest[(i * ATOM_FEATURE_DIM + j) % len(digest)] / 255.0
+                for j in range(ATOM_FEATURE_DIM)
+            ]
+            for i in range(n_atoms)
+        ]
+    )
     # ring + a few chords
     edges = [[i, (i + 1) % n_atoms] for i in range(n_atoms)]
     edges += [[i, (i + 2) % n_atoms] for i in range(0, n_atoms, 2)]
