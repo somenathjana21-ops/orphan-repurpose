@@ -6,10 +6,10 @@ Provides unified safety assessment for drug candidates.
 
 from __future__ import annotations
 
+from threading import Lock
 from typing import Any
 
 import structlog
-
 from app.ml.admet import ADMET_ENDPOINTS, ADMETPredictor
 from app.ml.faers import ContingencyTable, DisproportionalityResult, FAERSAnalyzer
 from app.services.faers_service import FaersService
@@ -194,11 +194,13 @@ class SafetyService:
 
 
 _service: SafetyService | None = None
+_service_lock = Lock()
 
 
 def get_safety_service() -> SafetyService:
     """Module-level singleton."""
     global _service
-    if _service is None:
-        _service = SafetyService()
+    with _service_lock:
+        if _service is None:
+            _service = SafetyService()
     return _service

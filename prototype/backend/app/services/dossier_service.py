@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 import structlog
-
 from app.models.disease import (
     Candidate,
     CredibilityMap,
@@ -198,11 +198,13 @@ class DossierService:
 
 
 _service: DossierService | None = None
+_service_lock = Lock()
 
 
 def get_dossier_service() -> DossierService:
     """Module-level singleton."""
     global _service
-    if _service is None:
-        _service = DossierService()
+    with _service_lock:
+        if _service is None:
+            _service = DossierService()
     return _service

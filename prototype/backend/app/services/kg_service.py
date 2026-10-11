@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
+from threading import RLock
 
 import kuzu
 import structlog
@@ -13,6 +16,7 @@ class KGService:
     """Knowledge Graph service using Kuzu embedded database."""
 
     def __init__(self):
+        self._lock = RLock()
         self.db_path = Path(settings.KUZU_DB_PATH)
         self.db = None
         self.conn = None
@@ -31,6 +35,10 @@ class KGService:
 
     def execute(self, query: str, params: dict = None) -> list[dict]:
         """Execute a Cypher query and return results as list of dicts."""
+        with self._lock:
+            return self._execute(query, params)
+
+    def _execute(self, query: str, params: dict | None) -> list[dict]:
         try:
             result = self.conn.execute(query, params or {})
             columns = result.get_column_names()
@@ -242,7 +250,10 @@ class KGService:
 
     def close(self):
         """Close database connection."""
-        if self.conn:
-            self.conn.close()
-        if self.db:
-            self.db.close()
+        with self._lock:
+            if self.conn:
+                self.conn.close()
+                self.conn = None
+            if self.db:
+                self.db.close()
+                self.db = None

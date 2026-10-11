@@ -6,10 +6,10 @@ Caches and serves explanations for drug-disease pairs.
 
 from __future__ import annotations
 
+from threading import Lock, RLock
 from typing import Any
 
 import structlog
-
 from app.ml.explainer import Explainer
 
 logger = structlog.get_logger()
@@ -19,6 +19,7 @@ class ExplanationService:
     """Caches and serves explanations for drug-disease pairs."""
 
     def __init__(self):
+        self._lock = RLock()
         self._explainer = Explainer()
         self._cache: dict[tuple, dict[str, Any]] = {}
         self._cache_inputs: dict[tuple, tuple] = {}
@@ -33,6 +34,20 @@ class ExplanationService:
         moa_summary: str,
     ) -> dict[str, Any]:
         """Generate or retrieve cached explanation."""
+        with self._lock:
+            return self._explain_candidate(
+                drug_id, disease_id, drug_name, disease_name, probability, moa_summary
+            )
+
+    def _explain_candidate(
+        self,
+        drug_id: str,
+        disease_id: str,
+        drug_name: str,
+        disease_name: str,
+        probability: float,
+        moa_summary: str,
+    ) -> dict[str, Any]:
         cache_key = (drug_id, disease_id)
         inputs = (drug_name, disease_name, probability, moa_summary)
 
@@ -71,12 +86,14 @@ class ExplanationService:
 
     def get_cached(self, drug_id: str, disease_id: str) -> dict[str, Any] | None:
         """Get cached explanation if available."""
-        return self._cache.get((drug_id, disease_id))
+        with self._lock:
+            return self._cache.get((drug_id, disease_id))
 
     def clear_cache(self):
         """Clear the explanation cache."""
-        self._cache.clear()
-        self._cache_inputs.clear()
+        with self._lock:
+            self._cache.clear()
+            self._cache_inputs.clear()
         logger.info("explanation_cache_cleared")
 
     @staticmethod
@@ -102,11 +119,13 @@ class ExplanationService:
 
 
 _service: ExplanationService | None = None
+_service_lock = Lock()
 
 
 def get_explanation_service() -> ExplanationService:
     """Module-level singleton."""
     global _service
-    if _service is None:
-        _service = ExplanationService()
+    with _service_lock:
+        if _service is None:
+            _service = ExplanationService()
     return _service

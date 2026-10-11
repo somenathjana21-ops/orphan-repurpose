@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
@@ -35,6 +36,7 @@ class Settings(BaseSettings):
 
     # ML Models
     INDICATION_MODEL_PATH: str = str(_DEFAULT_MODELS_DIR / "indication_model.pt")
+    INFERENCE_BATCH_SIZE: int = Field(default=64, ge=1, le=1024)
     KG_EMBEDDINGS_PATH: str = str(_DEFAULT_MODELS_DIR / "kg_embeddings.pkl")
     BIOMISTRAL_MODEL_PATH: str = str(_DEFAULT_MODELS_DIR / "bioMistral-7b.Q4_K_M.gguf")
 

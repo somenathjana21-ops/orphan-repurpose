@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
 
 from app.api.v1 import audit, candidates, diseases, dossier, kg, literature, validation
 from app.core.logging import configure_logging
@@ -23,8 +26,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("database_init_failed", error=str(e))
     # Initialize connections, load models, etc.
-    yield
-    logger.info("shutting_down_orphan_repurpose_api")
+    try:
+        yield
+    finally:
+        logger.info("shutting_down_orphan_repurpose_api")
+        from app.db.database import engine
+
+        try:
+            await run_in_threadpool(kg.close_kg_service)
+        finally:
+            await engine.dispose()
 
 
 app = FastAPI(

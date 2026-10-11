@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from threading import Lock
 from typing import Any
 
 import structlog
@@ -10,14 +13,25 @@ router = APIRouter()
 
 # Singleton KGService instance
 _kg_service: KGService | None = None
+_kg_service_lock = Lock()
 
 
 def _get_kg_service() -> KGService:
     """Get or create the KGService singleton."""
     global _kg_service
-    if _kg_service is None:
-        _kg_service = KGService()
+    with _kg_service_lock:
+        if _kg_service is None:
+            _kg_service = KGService()
     return _kg_service
+
+
+def close_kg_service() -> None:
+    """Release the graph database at application shutdown, if it was opened."""
+    global _kg_service
+    with _kg_service_lock:
+        if _kg_service is not None:
+            _kg_service.close()
+            _kg_service = None
 
 
 def _safe_get(node: dict, key: str, default=None):
@@ -30,7 +44,7 @@ def _safe_get(node: dict, key: str, default=None):
 
 
 @router.get("/search")
-async def search_kg(
+def search_kg(
     query: str | None = Query(None, description="Search query"),
     limit: int = Query(10, ge=1, le=50),
 ):
@@ -177,7 +191,7 @@ async def search_kg(
 
 
 @router.get("/subgraph")
-async def get_subgraph(
+def get_subgraph(
     drug_id: str = Query(..., description="Drug ID"),
     disease_id: str = Query(..., description="Disease ID"),
     max_depth: int = Query(3, ge=1, le=5),
@@ -426,7 +440,7 @@ async def get_subgraph(
 
 
 @router.get("/stats")
-async def get_kg_stats():
+def get_kg_stats():
     """Get real knowledge graph statistics from the Kuzu database."""
     try:
         kg = _get_kg_service()
@@ -490,7 +504,7 @@ async def get_kg_stats():
 
 
 @router.get("/drugs")
-async def list_drugs(
+def list_drugs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     query: str | None = Query(None, description="Filter by drug name or id"),
@@ -562,7 +576,7 @@ async def list_drugs(
 
 
 @router.get("/drugs/{drug_id}")
-async def get_drug_detail(drug_id: str):
+def get_drug_detail(drug_id: str):
     """Get detailed information about a specific drug."""
     try:
         kg = _get_kg_service()
@@ -657,7 +671,7 @@ async def get_drug_detail(drug_id: str):
 
 
 @router.get("/diseases")
-async def list_diseases(
+def list_diseases(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     query: str | None = Query(None, description="Filter by disease name or id"),
@@ -737,7 +751,7 @@ async def list_diseases(
 
 
 @router.get("/diseases/{disease_id}")
-async def get_disease_detail(disease_id: str):
+def get_disease_detail(disease_id: str):
     """Get detailed information about a specific disease, including genes and targets."""
     try:
         kg = _get_kg_service()

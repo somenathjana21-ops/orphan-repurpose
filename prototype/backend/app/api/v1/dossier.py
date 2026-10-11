@@ -524,8 +524,12 @@ async def generate_dossier(request: DossierRequest):
             "regulatory_strategy",
         ]
 
-        dossier_svc = get_dossier_service()
-        result = dossier_svc.generate_dossier(disease, candidates, sections, audit_trail_id)
+        from starlette.concurrency import run_in_threadpool
+
+        dossier_svc = await run_in_threadpool(get_dossier_service)
+        result = await run_in_threadpool(
+            dossier_svc.generate_dossier, disease, candidates, sections, audit_trail_id
+        )
 
         logger.info(
             "dossier_generated",

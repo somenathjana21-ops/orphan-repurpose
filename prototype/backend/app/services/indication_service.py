@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import pickle
 from pathlib import Path
+from threading import Lock, RLock
 
 import structlog
 import torch
-
-from app.ml.featurizer import smiles_to_graph
+from app.ml.featurizer import batch_graphs, smiles_to_graph
 from app.ml.indication_model import IndicationModel
 
 logger = structlog.get_logger()
@@ -23,14 +23,19 @@ logger = structlog.get_logger()
 class IndicationService:
     """Loads the indication model and produces ranked drug candidates."""
 
-    def __init__(self, model_path: str | None = None):
+    def __init__(self, model_path: str | None = None, batch_size: int | None = None):
         from app.core.config import settings
 
         self.model_path = Path(model_path or settings.INDICATION_MODEL_PATH)
+        self.batch_size = settings.INFERENCE_BATCH_SIZE if batch_size is None else batch_size
+        if self.batch_size < 1:
+            raise ValueError("batch_size must be positive")
+        self._lock = RLock()
         self.model: IndicationModel | None = None
         self.temperature = 1.0
         self.conformal_q: float | None = None
         self.drug_smiles: dict[str, str] = {}
+        self.drug_fingerprints: dict = {}
         self.disease_map: dict[str, int] = {}
         self.disease_embeddings = None
         self.config: dict = {}
@@ -40,6 +45,11 @@ class IndicationService:
 
     # -- lifecycle ---------------------------------------------------------
     def load(self) -> bool:
+        """Load the checkpoint once, including when requests arrive concurrently."""
+        with self._lock:
+            return self._load()
+
+    def _load(self) -> bool:
         if self._loaded:
             return True
         if not self.model_path.exists():
@@ -106,54 +116,66 @@ class IndicationService:
 
     # -- inference ---------------------------------------------------------
     def score_drugs(self, disease_key: str, drug_ids: list[str] | None = None) -> list[dict]:
-        """Score drugs against a disease; returns ranked dicts."""
+        """Score bounded batches, serializing access to the shared model and features."""
+        with self._lock:
+            return self._score_drugs(disease_key, drug_ids)
+
+    def _score_drugs(self, disease_key: str, drug_ids: list[str] | None) -> list[dict]:
         if not self._loaded and not self.load():
             return []
         if disease_key not in self.disease_map:
             return []
 
         arch = self.config.get("architecture", "DualEncoderCrossAttention")
-        ids = drug_ids or list(self.drug_smiles.keys())
+        ids = list(self.drug_smiles) if drug_ids is None else drug_ids
         ids = [d for d in ids if d in self.drug_smiles]
+        if arch == "SimpleIndicationModel_MLP":
+            ids = [d for d in ids if d in self.drug_fingerprints]
         if not ids:
             return []
+        assert self.model is not None
 
         d_idx = self.disease_map[disease_key]
-        disease_emb = torch.tensor(self.disease_embeddings[d_idx], dtype=torch.float32).unsqueeze(0)
+        disease_emb = torch.as_tensor(
+            self.disease_embeddings[d_idx], dtype=torch.float32
+        ).unsqueeze(0)
 
         results = []
-        with torch.no_grad():
-            for did in ids:
+        with torch.inference_mode():
+            for start in range(0, len(ids), self.batch_size):
+                batch_ids = ids[start : start + self.batch_size]
+                diseases = disease_emb.expand(len(batch_ids), -1)
                 if arch == "SimpleIndicationModel_MLP":
-                    # Use pre-computed Morgan fingerprints
-                    drug_fps = getattr(self, "drug_fingerprints", {})
-                    if did not in drug_fps:
-                        continue
-                    fp = torch.tensor(drug_fps[did], dtype=torch.float32).unsqueeze(0)
-                    logits = self.model(fp, disease_emb)
+                    fps = torch.stack(
+                        [
+                            torch.as_tensor(self.drug_fingerprints[did], dtype=torch.float32)
+                            for did in batch_ids
+                        ]
+                    )
+                    logits = self.model(fps, diseases)
                 else:
-                    # Use graph-based encoder
-                    feats, edge_index = self._graph(did)
-                    batch = torch.zeros(feats.size(0), dtype=torch.long)
-                    logits = self.model(feats, edge_index, batch, disease_emb)
-                # temperature-scale then sigmoid
+                    feats, edge_index, batch = batch_graphs([self._graph(did) for did in batch_ids])
+                    logits = self.model(feats, edge_index, batch, diseases)
                 scaled = logits / max(self.temperature, 1e-3)
-                prob = float(torch.sigmoid(scaled).item())
+                probabilities = torch.sigmoid(scaled).tolist()
                 q = self.conformal_q or 0.0
-                results.append(
-                    {
-                        "drug_id": did,
-                        "probability": prob,
-                        "ci_lower": max(0.0, prob - q),
-                        "ci_upper": min(1.0, prob + q),
-                    }
-                )
+                for did, prob in zip(batch_ids, probabilities, strict=True):
+                    results.append(
+                        {
+                            "drug_id": did,
+                            "probability": prob,
+                            "ci_lower": max(0.0, prob - q),
+                            "ci_upper": min(1.0, prob + q),
+                        }
+                    )
 
         results.sort(key=lambda r: r["probability"], reverse=True)
         return results
 
     def score_all_for_orpha(self, orpha_id: str, top_k: int = 20) -> list[dict]:
         """Convenience: score all drugs for a disease given by ORPHA id."""
+        if not self.is_ready():
+            return []
         key = self._resolve_disease_key(orpha_id)
         if key is None:
             return []
@@ -164,12 +186,14 @@ class IndicationService:
 
 
 _service: IndicationService | None = None
+_service_lock = Lock()
 
 
 def get_indication_service() -> IndicationService:
     """Module-level singleton."""
     global _service
-    if _service is None:
-        _service = IndicationService()
-        _service.load()
+    with _service_lock:
+        if _service is None:
+            _service = IndicationService()
+            _service.load()
     return _service

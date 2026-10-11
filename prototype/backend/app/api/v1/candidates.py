@@ -4,6 +4,7 @@ import uuid
 
 import structlog
 from fastapi import APIRouter, HTTPException
+from starlette.concurrency import run_in_threadpool
 
 from app.api.v1.diseases import ORPHA_TO_UMLS
 from app.models.disease import (
@@ -187,9 +188,7 @@ def _build_kg_path(drug_id: str, drug_name: str, disease_name: str) -> list:
     ]
 
 
-def _candidate_from_score(
-    rank: int, score: dict, disease_id: str = "ORPHA:646"
-) -> Candidate:
+def _candidate_from_score(rank: int, score: dict, disease_id: str = "ORPHA:646") -> Candidate:
     """Turn a model score dict into a Candidate response object."""
     drug_id = score["drug_id"]
     meta = DRUG_META.get(drug_id) or _DRUG_META_LOADED.get(drug_id)
@@ -224,6 +223,16 @@ def _candidate_from_score(
     )
 
 
+def _score_disease(disease_id: str) -> list[dict]:
+    """Load and run the synchronous model in a worker thread."""
+    from app.services.indication_service import get_indication_service
+
+    svc = get_indication_service()
+    if not svc.is_ready():
+        return []
+    return svc.score_all_for_orpha(ORPHA_TO_UMLS.get(disease_id, disease_id), top_k=20)
+
+
 @router.post("/generate", response_model=CandidateGenerateResponse)
 async def generate_candidates(request: CandidateGenerateRequest):
     """Generate repurposing candidates for a disease using the trained model."""
@@ -231,26 +240,19 @@ async def generate_candidates(request: CandidateGenerateRequest):
 
     # try real model inference
     try:
-        from app.services.indication_service import get_indication_service
-
-        svc = get_indication_service()
-        if svc.is_ready():
-            umls_key = ORPHA_TO_UMLS.get(disease_id, disease_id)
-            scores = svc.score_all_for_orpha(umls_key, top_k=20)
-            if scores:
-                candidates = [
-                    _candidate_from_score(i + 1, s, disease_id) for i, s in enumerate(scores)
-                ]
-                await _store_candidates(candidates)
-                logger.info(
-                    "candidates_generated_from_model",
-                    disease_id=disease_id,
-                    count=len(candidates),
-                )
-                return CandidateGenerateResponse(
-                    candidates=candidates,
-                    session_id=f"sess_{disease_id.replace(':', '_')}",
-                )
+        scores = await run_in_threadpool(_score_disease, disease_id)
+        if scores:
+            candidates = [_candidate_from_score(i + 1, s, disease_id) for i, s in enumerate(scores)]
+            await _store_candidates(candidates)
+            logger.info(
+                "candidates_generated_from_model",
+                disease_id=disease_id,
+                count=len(candidates),
+            )
+            return CandidateGenerateResponse(
+                candidates=candidates,
+                session_id=f"sess_{disease_id.replace(':', '_')}",
+            )
     except Exception as e:
         logger.warning("model_inference_failed_falling_back", error=str(e))
 
@@ -319,6 +321,8 @@ async def generate_candidates(request: CandidateGenerateRequest):
 
 async def _store_candidates(candidates: list[Candidate]) -> None:
     """Persist candidate scores and complete evidence in a single transaction."""
+    if not candidates:
+        return
     from sqlalchemy import select, text
 
     from app.db.database import _ensure_tables, async_session_factory
@@ -329,12 +333,23 @@ async def _store_candidates(candidates: list[Candidate]) -> None:
         if db.get_bind().dialect.name == "sqlite":
             # Serialize concurrent upserts before checking for existing rows.
             await db.execute(text("BEGIN IMMEDIATE"))
+        ids = [c.candidate_id for c in candidates]
+        existing_rows = {
+            row.id: row
+            for row in (
+                await db.scalars(select(CandidateModel).where(CandidateModel.id.in_(ids)))
+            ).all()
+        }
+        existing_details = {
+            row.candidate_id: row
+            for row in (
+                await db.scalars(
+                    select(CandidateDetailsModel).where(CandidateDetailsModel.candidate_id.in_(ids))
+                )
+            ).all()
+        }
         for c in candidates:
-            # Check if candidate already exists
-            result = await db.execute(
-                select(CandidateModel).where(CandidateModel.id == c.candidate_id)
-            )
-            existing = result.scalar_one_or_none()
+            existing = existing_rows.get(c.candidate_id)
             if existing:
                 # Update existing
                 existing.drug_id = c.drug_id
@@ -357,11 +372,16 @@ async def _store_candidates(candidates: list[Candidate]) -> None:
                     session_id=f"sess_{c.candidate_id}",
                 )
                 db.add(db_candidate)
-            await db.flush()
-            details = await db.get(CandidateDetailsModel, c.candidate_id)
+                existing_rows[c.candidate_id] = db_candidate
+        # Flush all parent rows together before adding their evidence records.
+        await db.flush()
+        for c in candidates:
+            details = existing_details.get(c.candidate_id)
             payload = c.model_dump(mode="json")
             if details is None:
-                db.add(CandidateDetailsModel(candidate_id=c.candidate_id, payload=payload))
+                details = CandidateDetailsModel(candidate_id=c.candidate_id, payload=payload)
+                db.add(details)
+                existing_details[c.candidate_id] = details
             else:
                 details.payload = payload
         await db.commit()
@@ -398,11 +418,8 @@ async def _lookup_candidate(candidate_id: str) -> Candidate | None:
 
     # Cold start: materialise the NPC candidate list so detail views work.
     try:
-        from app.services.indication_service import get_indication_service
-
-        svc = get_indication_service()
-        if svc.is_ready():
-            scores = svc.score_all_for_orpha("UMLS:C0220756", top_k=20)
+        scores = await run_in_threadpool(_score_disease, "ORPHA:646")
+        if scores:
             cands = [_candidate_from_score(i + 1, s) for i, s in enumerate(scores)]
             await _store_candidates(cands)
             for c in cands:
@@ -430,10 +447,11 @@ async def get_candidate_explanation(candidate_id: str):
         from app.api.v1.diseases import _DISEASE_BY_ID
         from app.services.explanation_service import get_explanation_service
 
-        svc = get_explanation_service()
+        svc = await run_in_threadpool(get_explanation_service)
         disease_id = candidate.disease_id or "unknown"
         disease_name = _DISEASE_BY_ID.get(disease_id, {}).get("name", "query disease")
-        explanation = svc.explain_candidate(
+        explanation = await run_in_threadpool(
+            svc.explain_candidate,
             drug_id=candidate.drug_id,
             disease_id=disease_id,
             drug_name=candidate.drug_name,
@@ -462,13 +480,13 @@ async def get_candidate_safety(candidate_id: str):
     try:
         from app.services.safety_service import get_safety_service
 
-        svc = get_safety_service()
+        svc = await run_in_threadpool(get_safety_service)
         smiles = ""
         try:
             from app.services.indication_service import get_indication_service
 
-            ind_svc = get_indication_service()
-            if ind_svc.is_ready():
+            ind_svc = await run_in_threadpool(get_indication_service)
+            if await run_in_threadpool(ind_svc.is_ready):
                 smiles = ind_svc.drug_smiles.get(candidate.drug_id, "")
         except Exception:
             pass
