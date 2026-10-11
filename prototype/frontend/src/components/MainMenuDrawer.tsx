@@ -23,7 +23,7 @@ const navSections = [
     title: 'Platform Modules',
     items: [
       { name: 'Disease Browser', href: '/', icon: LayoutDashboard, desc: 'Search 4,357 orphan conditions' },
-      { name: 'Drug Candidate Engine', href: '/diseases/ORPHA:635/candidates', icon: Sparkles, desc: 'DualEncoder GNN predictions' },
+      { name: 'Drug Candidate Engine', href: '/diseases/ORPHA:646/candidates', icon: Sparkles, desc: 'DualEncoder GNN predictions' },
       { name: 'Knowledge Graph Explorer', href: '/kg', icon: Network, desc: 'Kùzu biological relation graph' },
       { name: 'Clinical Case Studies', href: '/case-studies', icon: BookmarkCheck, desc: 'Niemann-Pick Type C & CF validation' },
       { name: 'IND Dossier Builder', href: '/dossier', icon: FileText, desc: 'Pre-IND regulatory packet & export' },
@@ -32,9 +32,9 @@ const navSections = [
 ]
 
 const benchmarkShortcuts = [
-  { name: 'Niemann-Pick Type C', orphaId: 'ORPHA:635', gene: 'NPC1', badge: 'Primary Benchmark' },
-  { name: 'Cystic Fibrosis', orphaId: 'ORPHA:793', gene: 'CFTR', badge: 'Targeted' },
-  { name: 'Huntington Disease', orphaId: 'ORPHA:98065', gene: 'HTT', badge: 'Neuro' },
+  { name: 'Niemann-Pick Type C', orphaId: 'ORPHA:646', gene: 'NPC1', badge: 'Primary Benchmark' },
+  { name: 'Cystic Fibrosis', orphaId: 'ORPHA:586', gene: 'CFTR', badge: 'Targeted' },
+  { name: 'Huntington Disease', orphaId: 'ORPHA:399', gene: 'HTT', badge: 'Neuro' },
 ]
 
 export function MainMenuDrawer({ isOpen, onClose, backendOnline }: MainMenuDrawerProps) {

@@ -11,7 +11,7 @@ const CASE_STUDIES = [
   {
     id: 'npc',
     disease: 'Niemann-Pick Disease Type C',
-    orphaId: 'ORPHA:635',
+    orphaId: 'ORPHA:646',
     prevalence: '0.5 per 100,000 (Ultra-rare)',
     genes: 'NPC1, NPC2',
     topDrug: 'Miglustat',
@@ -26,7 +26,7 @@ const CASE_STUDIES = [
   {
     id: 'cf',
     disease: 'Cystic Fibrosis',
-    orphaId: 'ORPHA:793',
+    orphaId: 'ORPHA:586',
     prevalence: '3.5 per 100,000 (Rare)',
     genes: 'CFTR',
     topDrug: 'Ivacaftor',
@@ -41,7 +41,7 @@ const CASE_STUDIES = [
   {
     id: 'hd',
     disease: 'Huntington Disease',
-    orphaId: 'ORPHA:98065',
+    orphaId: 'ORPHA:399',
     prevalence: '5.0 per 100,000 (Rare)',
     genes: 'HTT',
     topDrug: 'Tetrabenazine',

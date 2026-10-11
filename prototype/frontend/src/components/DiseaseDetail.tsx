@@ -12,7 +12,7 @@ import {
 import { diseasesApi } from '../services/api'
 
 export function DiseaseDetail() {
-  const { orphaId = 'ORPHA:635' } = useParams<{ orphaId: string }>()
+  const { orphaId = 'ORPHA:646' } = useParams<{ orphaId: string }>()
 
   const { data: disease, isLoading, error } = useQuery({
     queryKey: ['disease', orphaId],

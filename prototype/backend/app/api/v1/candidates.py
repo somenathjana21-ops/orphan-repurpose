@@ -5,6 +5,7 @@ import uuid
 import structlog
 from fastapi import APIRouter, HTTPException
 
+from app.api.v1.diseases import ORPHA_TO_UMLS
 from app.models.disease import (
     Candidate,
     CandidateGenerateRequest,
@@ -117,15 +118,6 @@ DEFAULT_SAFETY = SafetyFlags(
     overall="caution",
 )
 
-# ORPHA id -> UMLS CUI (the disease key used by the trained model)
-ORPHA_TO_UMLS = {
-    "ORPHA:635": "UMLS:C0028042",
-    "ORPHA:793": "UMLS:C0010674",
-    "ORPHA:98065": "UMLS:C0020179",
-    "ORPHA:399": "UMLS:C0017205",
-    "ORPHA:310": "UMLS:C0041341",
-}
-
 DRUG_ID_TO_ORPHA = {v: k for k, v in ORPHA_TO_UMLS.items()}
 
 
@@ -135,8 +127,11 @@ def _load_drug_meta() -> dict:
 
     import pandas as pd
 
+    from app.core.config import settings
+
     meta: dict = {}
     candidates = [
+        Path(settings.PROCESSED_DATA_DIR) / "drugcentral/drugcentral_fda_approved.parquet",
         Path("../data/processed/drugcentral/drugcentral_fda_approved.parquet"),
         Path("data/processed/drugcentral/drugcentral_fda_approved.parquet"),
     ]
@@ -193,12 +188,12 @@ def _build_kg_path(drug_id: str, drug_name: str, disease_name: str) -> list:
 
 
 def _candidate_from_score(
-    rank: int, score: dict, disease_id: str = "ORPHA:635"
+    rank: int, score: dict, disease_id: str = "ORPHA:646"
 ) -> Candidate:
     """Turn a model score dict into a Candidate response object."""
     drug_id = score["drug_id"]
     meta = DRUG_META.get(drug_id) or _DRUG_META_LOADED.get(drug_id)
-    name = meta["name"] if meta else drug_id.split(":")[-1]
+    name = score.get("drug_name") or (meta["name"] if meta else drug_id.split(":")[-1])
     moa = meta["moa"] if meta else "Mechanism not annotated"
     rationale = (
         meta.get("rationale")
@@ -260,11 +255,11 @@ async def generate_candidates(request: CandidateGenerateRequest):
         logger.warning("model_inference_failed_falling_back", error=str(e))
 
     # fallback: curated demo candidates
-    valid_diseases = ["ORPHA:635", "ORPHA:793", "ORPHA:98065"]
+    valid_diseases = ["ORPHA:646", "ORPHA:586", "ORPHA:399"]
     if disease_id not in valid_diseases:
         raise HTTPException(status_code=404, detail=f"Disease {disease_id} not found")
 
-    if disease_id == "ORPHA:635":
+    if disease_id == "ORPHA:646":
         candidates = [
             _candidate_from_score(
                 1,
@@ -287,8 +282,8 @@ async def generate_candidates(request: CandidateGenerateRequest):
                 disease_id,
             ),
         ]
-        session_id = "sess_ORPHA_635"
-    elif disease_id == "ORPHA:793":
+        session_id = "sess_ORPHA_646"
+    elif disease_id == "ORPHA:586":
         candidates = [
             _candidate_from_score(
                 1,
@@ -301,7 +296,7 @@ async def generate_candidates(request: CandidateGenerateRequest):
                 disease_id,
             ),
         ]
-        session_id = "sess_ORPHA_793"
+        session_id = "sess_ORPHA_586"
     else:
         candidates = [
             _candidate_from_score(
@@ -407,7 +402,7 @@ async def _lookup_candidate(candidate_id: str) -> Candidate | None:
 
         svc = get_indication_service()
         if svc.is_ready():
-            scores = svc.score_all_for_orpha("UMLS:C0028042", top_k=20)
+            scores = svc.score_all_for_orpha("UMLS:C0220756", top_k=20)
             cands = [_candidate_from_score(i + 1, s) for i, s in enumerate(scores)]
             await _store_candidates(cands)
             for c in cands:

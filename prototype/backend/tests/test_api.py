@@ -93,7 +93,7 @@ class TestLiteratureEndpoints:
 class TestCandidateEndpoints:
     @pytest.mark.asyncio
     async def test_generate_candidates(self, async_client: AsyncClient):
-        response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         assert response.status_code == 200
         data = response.json()
         assert "candidates" in data
@@ -103,7 +103,7 @@ class TestCandidateEndpoints:
     @pytest.mark.asyncio
     async def test_get_candidate(self, async_client: AsyncClient):
         # First generate candidates
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -114,7 +114,7 @@ class TestCandidateEndpoints:
 
     @pytest.mark.asyncio
     async def test_get_candidate_explanation(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -127,7 +127,7 @@ class TestCandidateEndpoints:
 
     @pytest.mark.asyncio
     async def test_get_candidate_safety(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -142,7 +142,7 @@ class TestCandidateEndpoints:
 class TestValidationEndpoints:
     @pytest.mark.asyncio
     async def test_validate_candidate(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -157,7 +157,7 @@ class TestValidationEndpoints:
 
     @pytest.mark.asyncio
     async def test_self_assess_candidate(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -175,7 +175,7 @@ class TestAuditEndpoints:
     @pytest.mark.asyncio
     async def test_audit_trail(self, async_client: AsyncClient):
         # First create a validation
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -194,7 +194,7 @@ class TestAuditEndpoints:
 
     @pytest.mark.asyncio
     async def test_audit_verify(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -215,12 +215,12 @@ class TestAuditEndpoints:
 class TestDossierEndpoints:
     @pytest.mark.asyncio
     async def test_generate_dossier(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_ids = [c["candidate_id"] for c in gen_data["candidates"][:3]]
             response = await async_client.post("/api/v1/dossier/generate", json={
-                "disease_id": "ORPHA:635",
+                "disease_id": "ORPHA:646",
                 "candidate_ids": candidate_ids,
                 "include_sections": ["background", "drug_profile", "mechanistic_rationale"]
             })
@@ -244,7 +244,7 @@ class TestDossierEndpoints:
 class TestKGEndpointsExtended:
     @pytest.mark.asyncio
     async def test_kg_subgraph(self, async_client: AsyncClient):
-        response = await async_client.get("/api/v1/kg/subgraph", params={"drug_id": "drugcentral:1001", "disease_id": "ORPHA:635"})
+        response = await async_client.get("/api/v1/kg/subgraph", params={"drug_id": "drugcentral:1001", "disease_id": "ORPHA:646"})
         assert response.status_code in [200, 404, 500]
         if response.status_code == 200:
             data = response.json()
@@ -279,7 +279,7 @@ class TestKGEndpointsExtended:
 
     @pytest.mark.asyncio
     async def test_kg_disease_detail(self, async_client: AsyncClient):
-        response = await async_client.get("/api/v1/kg/diseases/ORPHA:635")
+        response = await async_client.get("/api/v1/kg/diseases/ORPHA:646")
         assert response.status_code in [200, 404, 500]
         if response.status_code == 200:
             data = response.json()
@@ -289,7 +289,7 @@ class TestKGEndpointsExtended:
 class TestCandidateEndpointsExtended:
     @pytest.mark.asyncio
     async def test_get_candidate_kg_subgraph(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -301,7 +301,7 @@ class TestCandidateEndpointsExtended:
 
     @pytest.mark.asyncio
     async def test_get_candidate_literature(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -313,7 +313,7 @@ class TestCandidateEndpointsExtended:
 
     @pytest.mark.asyncio
     async def test_validate_candidate(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -324,7 +324,7 @@ class TestCandidateEndpointsExtended:
 
     @pytest.mark.asyncio
     async def test_self_assess_candidate(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -338,7 +338,7 @@ class TestAuditEndpointsExtended:
     @pytest.mark.asyncio
     async def test_audit_endpoint_with_existing_session(self, async_client: AsyncClient):
         # Generate candidates and create a validation first
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -354,7 +354,7 @@ class TestAuditEndpointsExtended:
 
     @pytest.mark.asyncio
     async def test_audit_verify_endpoint(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -372,12 +372,12 @@ class TestAuditEndpointsExtended:
 class TestDossierEndpointsExtended:
     @pytest.mark.asyncio
     async def test_generate_dossier_with_different_sections(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_ids = [c["candidate_id"] for c in gen_data["candidates"][:2]]
             response = await async_client.post("/api/v1/dossier/generate", json={
-                "disease_id": "ORPHA:635",
+                "disease_id": "ORPHA:646",
                 "candidate_ids": candidate_ids,
                 "include_sections": ["background", "drug_profile", "mechanistic_rationale", "safety_profile", "clinical_evidence"]
             })
@@ -392,7 +392,7 @@ class TestValidationEndpointsExtended:
     @pytest.mark.asyncio
     async def test_validate_candidate_direct(self, async_client: AsyncClient):
         # Test the validation endpoint directly
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -404,7 +404,7 @@ class TestValidationEndpointsExtended:
 
     @pytest.mark.asyncio
     async def test_self_assess_direct(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -428,7 +428,7 @@ class TestKGEndpointsEdgeCases:
 
     @pytest.mark.asyncio
     async def test_kg_subgraph_not_found_drug(self, async_client: AsyncClient):
-        response = await async_client.get("/api/v1/kg/subgraph", params={"drug_id": "nonexistent:999", "disease_id": "ORPHA:635"})
+        response = await async_client.get("/api/v1/kg/subgraph", params={"drug_id": "nonexistent:999", "disease_id": "ORPHA:646"})
         assert response.status_code in [404, 500]
 
     @pytest.mark.asyncio
@@ -514,7 +514,7 @@ class TestDiseasesEndpointsExtended:
 
     @pytest.mark.asyncio
     async def test_get_disease_detail(self, async_client: AsyncClient):
-        response = await async_client.get("/api/v1/diseases/ORPHA:635")
+        response = await async_client.get("/api/v1/diseases/ORPHA:646")
         assert response.status_code in [200, 404, 500]
         if response.status_code == 200:
             data = response.json()
@@ -544,7 +544,7 @@ class TestValidationEndpointsDirect:
     async def test_validation_endpoint_directly(self, async_client: AsyncClient):
         """Test the validation endpoint directly without going through candidates."""
         # First generate to get a candidate
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -553,7 +553,7 @@ class TestValidationEndpointsDirect:
 
     @pytest.mark.asyncio
     async def test_self_assess_endpoint_directly(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -564,7 +564,7 @@ class TestValidationEndpointsDirect:
 class TestAuditEndpointsCoverage:
     @pytest.mark.asyncio
     async def test_audit_trail_creation(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -583,7 +583,7 @@ class TestAuditEndpointsCoverage:
 
     @pytest.mark.asyncio
     async def test_audit_verify_creation(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -601,12 +601,12 @@ class TestAuditEndpointsCoverage:
 class TestDossierEndpointsCoverage:
     @pytest.mark.asyncio
     async def test_generate_dossier_all_sections(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_ids = [c["candidate_id"] for c in gen_data["candidates"][:3]]
             response = await async_client.post("/api/v1/dossier/generate", json={
-                "disease_id": "ORPHA:635",
+                "disease_id": "ORPHA:646",
                 "candidate_ids": candidate_ids,
                 "include_sections": ["background", "drug_profile", "mechanistic_rationale", "safety_profile", "clinical_evidence", "regulatory_pathway", "manufacturing"]
             })
@@ -614,12 +614,12 @@ class TestDossierEndpointsCoverage:
 
     @pytest.mark.asyncio
     async def test_generate_dossier_minimal(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_ids = [gen_data["candidates"][0]["candidate_id"]]
             response = await async_client.post("/api/v1/dossier/generate", json={
-                "disease_id": "ORPHA:635",
+                "disease_id": "ORPHA:646",
                 "candidate_ids": candidate_ids,
                 "include_sections": ["background"]
             })
@@ -630,7 +630,7 @@ class TestValidationEndpointsCoverage:
     @pytest.mark.asyncio
     async def test_validate_candidate_full_flow(self, async_client: AsyncClient):
         """Full flow: generate -> validate -> verify audit"""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -652,7 +652,7 @@ class TestValidationEndpointsCoverage:
 
     @pytest.mark.asyncio
     async def test_self_assess_full_flow(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -670,14 +670,14 @@ class TestValidationEndpointsCoverage:
 class TestDossierEndpointsMoreCoverage:
     @pytest.mark.asyncio
     async def test_generate_dossier_various_configs(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             # Test with different candidate counts
             for count in [1, 2, 3]:
                 candidate_ids = [c["candidate_id"] for c in gen_data["candidates"][:count]]
                 response = await async_client.post("/api/v1/dossier/generate", json={
-                    "disease_id": "ORPHA:635",
+                    "disease_id": "ORPHA:646",
                     "candidate_ids": candidate_ids,
                     "include_sections": ["background", "drug_profile"]
                 })
@@ -686,7 +686,7 @@ class TestDossierEndpointsMoreCoverage:
     @pytest.mark.asyncio
     async def test_generate_dossier_empty_candidates(self, async_client: AsyncClient):
         response = await async_client.post("/api/v1/dossier/generate", json={
-            "disease_id": "ORPHA:635",
+            "disease_id": "ORPHA:646",
             "candidate_ids": [],
             "include_sections": ["background"]
         })
@@ -699,7 +699,7 @@ class TestKGEndpointsDeepCoverage:
         for depth in [1, 2, 3, 4, 5]:
             response = await async_client.get("/api/v1/kg/subgraph", params={
                 "drug_id": "drugcentral:1001", 
-                "disease_id": "ORPHA:635",
+                "disease_id": "ORPHA:646",
                 "max_depth": depth
             })
             assert response.status_code in [200, 404, 500]
@@ -721,7 +721,7 @@ class TestKGEndpointsDeepCoverage:
 
     @pytest.mark.asyncio
     async def test_kg_search_various_queries(self, async_client: AsyncClient):
-        queries = ["miglustat", "sirolimus", "ivacaftor", "ORPHA:635", "NPC1", "glucosylceramide"]
+        queries = ["miglustat", "sirolimus", "ivacaftor", "ORPHA:646", "NPC1", "glucosylceramide"]
         for query in queries:
             response = await async_client.get("/api/v1/kg/search", params={"query": query, "limit": 5})
             assert response.status_code in [200, 500]
@@ -731,7 +731,7 @@ class TestCandidateEndpointsDeepCoverage:
     @pytest.mark.asyncio
     async def test_generate_candidates_all_demo_diseases(self, async_client: AsyncClient):
         """Test all supported demo diseases."""
-        for disease_id in ["ORPHA:635", "ORPHA:793", "ORPHA:98065"]:
+        for disease_id in ["ORPHA:646", "ORPHA:586", "ORPHA:399"]:
             response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": disease_id})
             assert response.status_code in [200, 404, 500]
             if response.status_code == 200:
@@ -743,7 +743,7 @@ class TestCandidateEndpointsDeepCoverage:
     @pytest.mark.asyncio
     async def test_get_candidate_with_model_ready(self, async_client: AsyncClient):
         """Test candidate detail when model is ready."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -764,7 +764,7 @@ class TestValidationEndpointsFull:
     @pytest.mark.asyncio
     async def test_validate_candidate_direct_endpoint(self, async_client: AsyncClient):
         """Test the /api/v1/validation/candidates/{id}/validate endpoint directly."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -784,7 +784,7 @@ class TestValidationEndpointsFull:
     @pytest.mark.asyncio
     async def test_self_assess_direct_endpoint(self, async_client: AsyncClient):
         """Test the /api/v1/validation/candidates/{id}/assess endpoint directly."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -803,12 +803,12 @@ class TestDossierEndpointsFull:
     @pytest.mark.asyncio
     async def test_generate_dossier_full_sections(self, async_client: AsyncClient):
         """Test dossier generation with all available sections."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_ids = [c["candidate_id"] for c in gen_data["candidates"][:3]]
             response = await async_client.post("/api/v1/dossier/generate", json={
-                "disease_id": "ORPHA:635",
+                "disease_id": "ORPHA:646",
                 "candidate_ids": candidate_ids,
                 "include_sections": [
                     "background",
@@ -830,12 +830,12 @@ class TestDossierEndpointsFull:
 
     @pytest.mark.asyncio
     async def test_generate_dossier_single_candidate(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_ids = [gen_data["candidates"][0]["candidate_id"]]
             response = await async_client.post("/api/v1/dossier/generate", json={
-                "disease_id": "ORPHA:635",
+                "disease_id": "ORPHA:646",
                 "candidate_ids": candidate_ids,
                 "include_sections": ["background"]
             })
@@ -848,7 +848,7 @@ class TestAuditEndpointsDeepCoverage:
     @pytest.mark.asyncio
     async def test_audit_trail_with_multiple_entries(self, async_client: AsyncClient):
         """Test audit trail with multiple validation and self-assessment entries."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -897,7 +897,7 @@ class TestValidationEndpointsDeepCoverage:
     @pytest.mark.asyncio
     async def test_validate_candidate_all_assessments(self, async_client: AsyncClient):
         """Test validation with all assessment types."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -915,7 +915,7 @@ class TestValidationEndpointsDeepCoverage:
 
     @pytest.mark.asyncio
     async def test_self_assess_all_scores(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -932,7 +932,7 @@ class TestValidationEndpointsDeepCoverage:
 class TestDossierEndpointsDeepCoverage:
     @pytest.mark.asyncio
     async def test_generate_dossier_various_sections(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_ids = [c["candidate_id"] for c in gen_data["candidates"][:3]]
@@ -941,7 +941,7 @@ class TestDossierEndpointsDeepCoverage:
             sections = ["background", "drug_profile", "mechanistic_rationale", "safety_profile", "clinical_evidence", "regulatory_pathway", "manufacturing", "risk_benefit"]
             for section in sections:
                 response = await async_client.post("/api/v1/dossier/generate", json={
-                    "disease_id": "ORPHA:635",
+                    "disease_id": "ORPHA:646",
                     "candidate_ids": candidate_ids[:1],
                     "include_sections": [section]
                 })
@@ -949,7 +949,7 @@ class TestDossierEndpointsDeepCoverage:
             
             # Test all sections together
             response = await async_client.post("/api/v1/dossier/generate", json={
-                "disease_id": "ORPHA:635",
+                "disease_id": "ORPHA:646",
                 "candidate_ids": candidate_ids,
                 "include_sections": sections
             })
@@ -1012,7 +1012,7 @@ class TestLiteratureEndpointsDeepCoverage:
 class TestCandidateEndpointsDeepCoverage:
     @pytest.mark.asyncio
     async def test_generate_candidates_top_k(self, async_client: AsyncClient):
-        response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635", "top_k": 5})
+        response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646", "top_k": 5})
         assert response.status_code in [200, 500]
         if response.status_code == 200:
             data = response.json()
@@ -1021,7 +1021,7 @@ class TestCandidateEndpointsDeepCoverage:
 
     @pytest.mark.asyncio
     async def test_candidate_detail_fields(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1037,7 +1037,7 @@ class TestCandidateEndpointsDeepCoverage:
 
     @pytest.mark.asyncio
     async def test_candidate_explanation_structure(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1052,7 +1052,7 @@ class TestCandidateEndpointsDeepCoverage:
 
     @pytest.mark.asyncio
     async def test_candidate_safety_structure(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1069,7 +1069,7 @@ class TestAuditEndpointsFinal:
     @pytest.mark.asyncio
     async def test_audit_endpoint_root(self, async_client: AsyncClient):
         # Test the /api/v1/audit/{session_id} endpoint
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1101,7 +1101,7 @@ class TestValidationEndpointsFinal:
     @pytest.mark.asyncio
     async def test_validation_endpoints_full(self, async_client: AsyncClient):
         """Test both validation endpoints thoroughly."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1134,14 +1134,14 @@ class TestValidationEndpointsFinal:
 class TestDossierEndpointsFinal:
     @pytest.mark.asyncio
     async def test_dossier_endpoint_full(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_ids = [c["candidate_id"] for c in gen_data["candidates"][:3]]
             
             # Test with all sections
             response = await async_client.post("/api/v1/dossier/generate", json={
-                "disease_id": "ORPHA:635",
+                "disease_id": "ORPHA:646",
                 "candidate_ids": candidate_ids,
                 "include_sections": [
                     "background", "drug_profile", "mechanistic_rationale",
@@ -1228,7 +1228,7 @@ class TestCandidateEndpointsFinal:
     @pytest.mark.asyncio
     async def test_candidate_generate_with_top_k(self, async_client: AsyncClient):
         response = await async_client.post("/api/v1/candidates/generate", json={
-            "disease_id": "ORPHA:635",
+            "disease_id": "ORPHA:646",
             "top_k": 10
         })
         assert response.status_code in [200, 500]
@@ -1240,7 +1240,7 @@ class TestCandidateEndpointsFinal:
 
     @pytest.mark.asyncio
     async def test_candidate_kg_subgraph_endpoint(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1253,7 +1253,7 @@ class TestCandidateEndpointsFinal:
 
     @pytest.mark.asyncio
     async def test_candidate_literature_endpoint(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1271,7 +1271,7 @@ class TestKgEndpointsFinal:
         for depth in [1, 2, 3, 4, 5]:
             response = await async_client.get("/api/v1/kg/subgraph", params={
                 "drug_id": "drugcentral:1001",
-                "disease_id": "ORPHA:635",
+                "disease_id": "ORPHA:646",
                 "max_depth": depth
             })
             assert response.status_code in [200, 404, 500]
@@ -1323,7 +1323,7 @@ class TestValidationEndpointsMoreCoverage:
     @pytest.mark.asyncio
     async def test_validate_candidate_with_different_assessments(self, async_client: AsyncClient):
         """Test all validation assessment values."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1337,7 +1337,7 @@ class TestValidationEndpointsMoreCoverage:
 
     @pytest.mark.asyncio
     async def test_self_assess_boundary_values(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1354,7 +1354,7 @@ class TestValidationEndpointsMoreCoverage:
 class TestAuditEndpointsMoreCoverage:
     @pytest.mark.asyncio
     async def test_audit_trail_with_multiple_validations(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1387,7 +1387,7 @@ class TestDossierEndpointsMoreCoverage:
     @pytest.mark.asyncio
     async def test_dossier_with_empty_candidates(self, async_client: AsyncClient):
         response = await async_client.post("/api/v1/dossier/generate", json={
-            "disease_id": "ORPHA:635",
+            "disease_id": "ORPHA:646",
             "candidate_ids": [],
             "include_sections": ["background"]
         })
@@ -1395,14 +1395,14 @@ class TestDossierEndpointsMoreCoverage:
 
     @pytest.mark.asyncio
     async def test_dossier_with_single_section(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_ids = [gen_data["candidates"][0]["candidate_id"]]
             
             for section in ["background", "drug_profile", "mechanistic_rationale", "safety_profile"]:
                 response = await async_client.post("/api/v1/dossier/generate", json={
-                    "disease_id": "ORPHA:635",
+                    "disease_id": "ORPHA:646",
                     "candidate_ids": candidate_ids,
                     "include_sections": [section]
                 })
@@ -1428,7 +1428,7 @@ class TestLiteratureEndpointsMoreCoverage:
 class TestCandidateEndpointsMoreCoverage:
     @pytest.mark.asyncio
     async def test_candidate_generate_different_diseases(self, async_client: AsyncClient):
-        for disease_id in ["ORPHA:635", "ORPHA:793", "ORPHA:98065"]:
+        for disease_id in ["ORPHA:646", "ORPHA:586", "ORPHA:399"]:
             response = await async_client.post("/api/v1/candidates/generate", json={
                 "disease_id": disease_id,
                 "top_k": 5
@@ -1469,7 +1469,7 @@ class TestValidationEndpointsFinalCoverage:
     @pytest.mark.asyncio
     async def test_validate_candidate_error_handling(self, async_client: AsyncClient):
         """Test validation endpoint with various inputs."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1483,7 +1483,7 @@ class TestValidationEndpointsFinalCoverage:
 
     @pytest.mark.asyncio
     async def test_self_assess_error_handling(self, async_client: AsyncClient):
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1521,7 +1521,7 @@ class TestDossierEndpointsFinalCoverage:
         
         # Test with non-existent candidate
         response = await async_client.post("/api/v1/dossier/generate", json={
-            "disease_id": "ORPHA:635",
+            "disease_id": "ORPHA:646",
             "candidate_ids": ["nonexistent_candidate"],
             "include_sections": ["background"]
         })
@@ -1603,7 +1603,7 @@ class TestAuditEndpointsErrorHandling:
         from app.services.audit_service import get_audit_service
         
         # First create a valid session
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1625,7 +1625,7 @@ class TestAuditEndpointsErrorHandling:
         from unittest.mock import patch
         from app.services.audit_service import get_audit_service
         
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1656,7 +1656,7 @@ class TestValidationEndpointRoot:
     async def test_validation_endpoint_root(self, async_client: AsyncClient):
         """Test the validation router's base path? Actually we test the endpoints."""
         # Just ensure we hit the router module by calling an endpoint
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1670,7 +1670,7 @@ class TestValidationEndpointCoverage:
     @pytest.mark.asyncio
     async def test_validate_candidate_all_assessments(self, async_client: AsyncClient):
         """Test all assessment types to cover validation lines."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1689,7 +1689,7 @@ class TestValidationEndpointCoverage:
     @pytest.mark.asyncio
     async def test_self_assess_all_ranges(self, async_client: AsyncClient):
         """Test self-assessment with various values to cover lines."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1739,7 +1739,7 @@ class TestSimpleEndpointCoverage:
     @pytest.mark.asyncio
     async def test_validation_endpoints_simple(self, async_client: AsyncClient):
         """Simple tests to cover validation endpoint lines."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1761,7 +1761,7 @@ class TestSimpleEndpointCoverage:
     @pytest.mark.asyncio
     async def test_audit_endpoints_simple(self, async_client: AsyncClient):
         """Simple tests to cover audit endpoint lines."""
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1795,7 +1795,7 @@ class TestValidationEndpointsFullCoverage:
         from unittest.mock import patch
         from app.services.audit_service import get_audit_service
         
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1814,7 +1814,7 @@ class TestValidationEndpointsFullCoverage:
         from unittest.mock import patch
         from app.services.audit_service import get_audit_service
         
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1840,7 +1840,7 @@ class TestValidationEndpointsFullCoverage:
         from app.services.audit_service import get_audit_service
         
         # Create a valid session first
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1867,7 +1867,7 @@ class TestValidationEndpointsFullCoverage:
         from unittest.mock import patch
         from app.services.audit_service import get_audit_service
         
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_id = gen_data["candidates"][0]["candidate_id"]
@@ -1892,7 +1892,7 @@ class TestValidationEndpointsFullCoverage:
         from app.services.indication_service import IndicationService
         svc = IndicationService(model_path="/nonexistent/path/model.pt")
         # Don't call load(), _loaded is False
-        results = svc.score_drugs("UMLS:C0028042")
+        results = svc.score_drugs("UMLS:C0220756")
         assert results == []
 
     @pytest.mark.asyncio
@@ -1912,9 +1912,9 @@ class TestValidationEndpointsFullCoverage:
         from app.services.indication_service import IndicationService
         svc = IndicationService(model_path="/nonexistent/path/model.pt")
         svc._loaded = True
-        svc.disease_map = {"UMLS:C0028042": 0}
+        svc.disease_map = {"UMLS:C0220756": 0}
         svc.disease_embeddings = [[0.0]*256]
-        results = svc.score_drugs("UMLS:C0028042", drug_ids=[])
+        results = svc.score_drugs("UMLS:C0220756", drug_ids=[])
         assert results == []
 
     @pytest.mark.asyncio
@@ -1924,13 +1924,13 @@ class TestValidationEndpointsFullCoverage:
         import torch
         svc = IndicationService(model_path="/nonexistent/path/model.pt")
         svc._loaded = True
-        svc.disease_map = {"UMLS:C0028042": 0}
+        svc.disease_map = {"UMLS:C0220756": 0}
         svc.disease_embeddings = [[0.0]*256]
         svc.drug_smiles = {"drugcentral:1001": "CCO"}
         svc.config = {"architecture": "SimpleIndicationModel_MLP"}
         # drug_fingerprints missing the drug
         svc.drug_fingerprints = {}
-        results = svc.score_drugs("UMLS:C0028042", drug_ids=["drugcentral:999"])
+        results = svc.score_drugs("UMLS:C0220756", drug_ids=["drugcentral:999"])
         assert results == []
 
     @pytest.mark.asyncio
@@ -1969,14 +1969,14 @@ class TestDossierEndpointsFullCoverage:
         from unittest.mock import patch
         from app.services.dossier_service import get_dossier_service
         
-        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"})
+        gen_response = await async_client.post("/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"})
         gen_data = gen_response.json()
         if gen_data["candidates"]:
             candidate_ids = [gen_data["candidates"][0]["candidate_id"]]
             
             with patch.object(get_dossier_service(), 'generate_dossier', side_effect=Exception("Template error")):
                 response = await async_client.post("/api/v1/dossier/generate", json={
-                    "disease_id": "ORPHA:635",
+                    "disease_id": "ORPHA:646",
                     "candidate_ids": candidate_ids,
                     "include_sections": ["background"]
                 })

@@ -19,7 +19,7 @@ function App() {
           <Route path="/diseases" element={<Navigate to="/" replace />} />
           <Route path="/diseases/:orphaId" element={<DiseaseDetail />} />
           <Route path="/diseases/:orphaId/candidates" element={<CandidateList />} />
-          <Route path="/candidates" element={<Navigate to="/diseases/ORPHA:635/candidates" replace />} />
+          <Route path="/candidates" element={<Navigate to="/diseases/ORPHA:646/candidates" replace />} />
           <Route path="/candidates/:candidateId" element={<CandidateDetail />} />
           <Route path="/dossier" element={<DossierBuilder />} />
           <Route path="/case-studies" element={<CaseStudies />} />

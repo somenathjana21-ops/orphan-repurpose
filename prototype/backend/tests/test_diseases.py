@@ -15,7 +15,7 @@ class TestDiseaseModels:
     
     def test_disease_search_result(self):
         disease = DiseaseSearchResult(
-            orpha_id="ORPHA:635",
+            orpha_id="ORPHA:646",
             name="Niemann-Pick disease type C",
             prevalence=0.09,
             prevalence_category="<1/1,000,000",
@@ -25,13 +25,13 @@ class TestDiseaseModels:
             existing_treatments=["Miglustat (EU)"],
             unmet_need_score=0.92,
         )
-        assert disease.orpha_id == "ORPHA:635"
+        assert disease.orpha_id == "ORPHA:646"
         assert len(disease.genes) == 1
         assert disease.unmet_need_score == 0.92
     
     def test_disease_detail_extends_search_result(self):
         detail = DiseaseDetail(
-            orpha_id="ORPHA:635",
+            orpha_id="ORPHA:646",
             name="Niemann-Pick disease type C",
             description="A rare genetic disorder...",
             synonyms=["NPC", "Niemann-Pick type C"],

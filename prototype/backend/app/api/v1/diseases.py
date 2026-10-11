@@ -33,7 +33,7 @@ _UMLS_TO_ORPHA: dict[str, str] = {}
 # Fallback curated diseases if the parquet is unavailable
 _FALLBACK_DISEASES = [
     {
-        "id": "ORPHA:635",
+        "id": "ORPHA:646",
         "name": "Niemann-Pick disease type C",
         "prevalence": 0.5,
         "prevalence_category": "1/200,000 - 1/2,000",
@@ -55,10 +55,10 @@ _FALLBACK_DISEASES = [
         "existing_treatments": ["Miglustat"],
         "unmet_need_score": 0.85,
         "description": "Niemann-Pick type C is a rare lysosomal storage disorder characterised by progressive neurodegeneration.",
-        "umls_cui": "C0028042",
+        "umls_cui": "C0220756",
     },
     {
-        "id": "ORPHA:793",
+        "id": "ORPHA:586",
         "name": "Cystic fibrosis",
         "prevalence": 3.5,
         "prevalence_category": "1/200,000 - 1/2,000",
@@ -82,7 +82,7 @@ _FALLBACK_DISEASES = [
         "umls_cui": "C0010674",
     },
     {
-        "id": "ORPHA:98065",
+        "id": "ORPHA:399",
         "name": "Huntington disease",
         "prevalence": 5.0,
         "prevalence_category": "1/200,000 - 1/2,000",
@@ -200,6 +200,17 @@ _DISEASE_BY_ID = {d["id"]: d for d in _DISEASES}
 
 # ORPHA -> UMLS mapping used by the candidate model
 ORPHA_TO_UMLS = {d["id"]: f"UMLS:{d['umls_cui']}" for d in _DISEASES if d.get("umls_cui")}
+# Verified benchmark cross-references also work when the parquet omits UMLS values.
+# Source: https://www.orpha.net/ORDO/Orphanet_<ORPHA code>
+ORPHA_TO_UMLS.update(
+    {
+        "ORPHA:646": "UMLS:C0220756",
+        "ORPHA:586": "UMLS:C0010674",
+        "ORPHA:399": "UMLS:C0020179",
+        "ORPHA:355": "UMLS:C0017205",
+        "ORPHA:805": "UMLS:C0041341",
+    }
+)
 UMLS_TO_ORPHA = {v: k for k, v in ORPHA_TO_UMLS.items()}
 
 

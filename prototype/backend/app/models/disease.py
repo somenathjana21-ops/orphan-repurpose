@@ -22,7 +22,7 @@ class Pathway(BaseModel):
     url: Optional[str] = None
 
 class DiseaseBase(BaseModel):
-    orpha_id: str = Field(..., description="Orpha code (e.g., ORPHA:635)")
+    orpha_id: str = Field(..., description="Orpha code (e.g., ORPHA:646)")
     name: str
     prevalence: Optional[float] = None
     prevalence_category: Optional[DiseasePrevalence] = None

@@ -25,7 +25,7 @@ class TestKGService:
             [
                 {
                     "d": {
-                        "id": "ORPHA:635",
+                        "id": "ORPHA:646",
                         "name": "Niemann-Pick disease type C",
                         "prevalence": 0.09,
                         "prevalence_category": "<1/1,000,000",
@@ -45,14 +45,14 @@ class TestKGService:
         
         assert total == 1
         assert len(diseases) == 1
-        assert diseases[0].orpha_id == "ORPHA:635"
+        assert diseases[0].orpha_id == "ORPHA:646"
         assert diseases[0].name == "Niemann-Pick disease type C"
     
     def test_get_disease_found(self, mock_kg_service):
         mock_kg_service.execute.side_effect = [
             [{
                 "d": {
-                    "id": "ORPHA:635",
+                    "id": "ORPHA:646",
                     "name": "Niemann-Pick disease type C",
                     "prevalence": 0.09,
                     "prevalence_category": "<1/1,000,000",
@@ -74,10 +74,10 @@ class TestKGService:
             [{"p": {"reactome_id": "R-HSA-123", "name": "Cholesterol metabolism"}}],
         ]
         
-        disease = mock_kg_service.get_disease("ORPHA:635")
+        disease = mock_kg_service.get_disease("ORPHA:646")
         
         assert disease is not None
-        assert disease.orpha_id == "ORPHA:635"
+        assert disease.orpha_id == "ORPHA:646"
         assert disease.description == "A rare genetic disorder..."
     
     def test_get_disease_not_found(self, mock_kg_service):
@@ -93,7 +93,7 @@ class TestKGService:
             {"symbol": "NPC2"},
         ]
         
-        genes = mock_kg_service.get_disease_genes("ORPHA:635")
+        genes = mock_kg_service.get_disease_genes("ORPHA:646")
         
         assert genes == ["NPC1", "NPC2"]
     
@@ -103,7 +103,7 @@ class TestKGService:
             {"name": "Lysosomal transport"},
         ]
         
-        pathways = mock_kg_service.get_disease_pathways("ORPHA:635")
+        pathways = mock_kg_service.get_disease_pathways("ORPHA:646")
         
         assert pathways == ["Cholesterol metabolism", "Lysosomal transport"]
 

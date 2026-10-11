@@ -12,7 +12,7 @@ import { dossierApi } from '../services/api'
 import type { DossierResponse } from '../types'
 
 export function DossierBuilder() {
-  const [diseaseId, setDiseaseId] = useState('ORPHA:635')
+  const [diseaseId, setDiseaseId] = useState('ORPHA:646')
   const [candidateIds, setCandidateIds] = useState<string[]>(['drugcentral:1001'])
   const [candidateInput, setCandidateInput] = useState('')
   const [includeSections, setIncludeSections] = useState<string[]>([
@@ -71,7 +71,7 @@ export function DossierBuilder() {
   }
 
   const loadNpcPreset = () => {
-    setDiseaseId('ORPHA:635')
+    setDiseaseId('ORPHA:646')
     setCandidateIds(['drugcentral:1001', 'drugcentral:1002'])
     setError(null)
   }
@@ -132,12 +132,12 @@ export function DossierBuilder() {
                   type="text"
                   value={diseaseId}
                   onChange={(e) => setDiseaseId(e.target.value.trim())}
-                  placeholder="e.g. ORPHA:635"
+                  placeholder="e.g. ORPHA:646"
                   className="input font-mono max-w-sm"
                 />
               </div>
               <p className="text-xs text-slate-400 mt-1.5">
-                Example: <strong className="text-slate-600">ORPHA:635</strong> (Niemann-Pick Type C), <strong className="text-slate-600">ORPHA:793</strong> (Cystic Fibrosis)
+                Example: <strong className="text-slate-600">ORPHA:646</strong> (Niemann-Pick Type C), <strong className="text-slate-600">ORPHA:586</strong> (Cystic Fibrosis)
               </p>
             </div>
           </div>

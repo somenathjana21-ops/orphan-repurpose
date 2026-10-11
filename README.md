@@ -92,7 +92,7 @@ Unlike typical drug repurposing repositories that rely on static CSV files or bl
 The platform features an **Asklepios-inspired clinical design system** crafted for clarity, clinical focus, and fluid interaction:
 
 1. **Framed Floating Canvas**: The application resides in an elevated, rounded card (`rounded-[32px]`, `shadow-2xl`) suspended against a soft slate backdrop (`#eef2f6`).
-2. **Spacious Top Navigation**: Clean geometric branding (`+ orphan repurpose`), active pill links, benchmark disease quick-switchers (**NPC `ORPHA:635`**, **Cystic Fibrosis `ORPHA:793`**), live backend health telemetry pulse, and a slide-over `Main Menu` drawer.
+2. **Spacious Top Navigation**: Clean geometric branding (`+ orphan repurpose`), active pill links, benchmark disease quick-switchers (**NPC `ORPHA:646`**, **Cystic Fibrosis `ORPHA:586`**), live backend health telemetry pulse, and a slide-over `Main Menu` drawer.
 3. **Signature Frosted 3D Glass Hero**: Pure CSS/SVG layered frosted glass slabs with cyan/ice-blue gradients, real-time platform telemetry chips (1,645 drugs, 1,470 diseases, 15.5k edges, 91.7% Recall@20), and instant exploration action buttons.
 4. **Interactive Cytoscape KG Browser**: Real-time graph visualization with physics layout, node/edge inspection, degree metrics, search filters, and neighbor expansion.
 5. **Clinician Validation & Dossier Builder**: Elevated review cards with decision buttons (Approve / Reject / Flag), confidence threshold controls, and one-click regulatory dossier exports.

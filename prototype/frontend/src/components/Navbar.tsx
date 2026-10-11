@@ -8,7 +8,7 @@ interface NavbarProps {
 
 const navLinks = [
   { name: 'Diseases', href: '/' },
-  { name: 'Candidates', href: '/diseases/ORPHA:635/candidates' },
+  { name: 'Candidates', href: '/diseases/ORPHA:646/candidates' },
   { name: 'Knowledge Graph', href: '/kg' },
   { name: 'Case Studies', href: '/case-studies' },
   { name: 'Dossier', href: '/dossier' },
@@ -61,11 +61,11 @@ export function Navbar({ onOpenMenu, backendOnline }: NavbarProps) {
         <div className="hidden xl:flex items-center gap-2">
           <span className="text-[11px] font-medium text-slate-400">Benchmark:</span>
           <Link
-            to="/diseases/ORPHA:635"
+            to="/diseases/ORPHA:646"
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-50/70 text-blue-700 border border-blue-200/50 hover:bg-blue-100/70 transition-colors"
           >
             <FlaskConical className="h-3 w-3" />
-            NPC (ORPHA:635)
+            NPC (ORPHA:646)
           </Link>
         </div>
 

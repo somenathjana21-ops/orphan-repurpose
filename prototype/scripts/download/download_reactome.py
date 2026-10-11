@@ -18,22 +18,22 @@ logger = structlog.get_logger()
 # These are real Reactome pathway IDs for pathways relevant to rare diseases
 PATHWAYS = [
     # Lysosomal storage disorders
-    ("Lysosome pathway", "R-HSA-1660158", ["ORPHA:635", "ORPHA:399", "ORPHA:512"],
+    ("Lysosome pathway", "R-HSA-1660158", ["ORPHA:646", "ORPHA:355", "ORPHA:512"],
      "Lysosomal organization and function; relevant to Niemann-Pick, Gaucher, Fabry"),
     # Autophagy
-    ("Autophagy", "R-HSA-9612973", ["ORPHA:635", "ORPHA:399", "ORPHA:512"],
+    ("Autophagy", "R-HSA-9612973", ["ORPHA:646", "ORPHA:355", "ORPHA:512"],
      "Autophagy pathway; implicated in lysosomal storage disorders"),
 
     # CFTR trafficking (Cystic fibrosis)
-    ("CFTR trafficking and processing", "R-HSA-382551", ["ORPHA:793"],
+    ("CFTR trafficking and processing", "R-HSA-382551", ["ORPHA:586"],
      "CFTR folding, trafficking and degradation; target for cystic fibrosis therapies"),
-    ("CFTR regulation by ENaC", "R-HSA-9614399", ["ORPHA:793"],
+    ("CFTR regulation by ENaC", "R-HSA-9614399", ["ORPHA:586"],
      "CFTR interaction with ENaC sodium channels"),
 
     # mTOR signaling (Tuberous sclerosis)
-    ("mTOR signaling", "R-HSA-165159", ["ORPHA:310"],
+    ("mTOR signaling", "R-HSA-165159", ["ORPHA:805"],
      "mTOR signaling pathway; target of sirolimus in tuberous sclerosis"),
-    ("MTORC1-mediated signaling", "R-HSA-166208", ["ORPHA:310"],
+    ("MTORC1-mediated signaling", "R-HSA-166208", ["ORPHA:805"],
      "MTORC1 signaling; relevant to TSC and cancer repurposing"),
 
     # DNA repair (Fanconi anemia, Ataxia telangiectasia)
@@ -49,7 +49,7 @@ PATHWAYS = [
      "Alternative complement pathway; aHUS mechanism"),
 
     # Sphingolipid metabolism (Niemann-Pick, Gaucher, Fabry)
-    ("Sphingolipid metabolism", "R-HSA-1660662", ["ORPHA:635", "ORPHA:399", "ORPHA:512"],
+    ("Sphingolipid metabolism", "R-HSA-1660662", ["ORPHA:646", "ORPHA:355", "ORPHA:512"],
      "Sphingolipid metabolism; target of substrate reduction therapy"),
 
     # Glycosaminoglycan metabolism (MPS disorders)
@@ -63,7 +63,7 @@ PATHWAYS = [
      "snRNP biogenesis; SMA mechanism"),
 
     # Dopamine signaling (Huntington, Parkinson)
-    ("Dopamine receptor signaling", "R-HSA-390666", ["ORPHA:98065"],
+    ("Dopamine receptor signaling", "R-HSA-390666", ["ORPHA:399"],
      "Dopamine signaling; Huntington disease relevance"),
 
     # TGF-beta signaling (Marfan, HHT)
@@ -71,7 +71,7 @@ PATHWAYS = [
      "TGF-beta signaling; Marfan and HHT"),
 
     # Epidermal growth factor receptor (EGFR) signaling
-    ("EGFR signaling", "R-HSA-177929", ["ORPHA:310"],
+    ("EGFR signaling", "R-HSA-177929", ["ORPHA:805"],
      "EGFR signaling; cancer repurposing relevance"),
 
     # JAK-STAT signaling (immunodeficiencies)

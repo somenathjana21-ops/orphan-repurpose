@@ -169,7 +169,7 @@ export function Dashboard() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
             <input
               type="search"
-              placeholder="Search 4,357 rare diseases by disease name, ORPHA code (e.g. ORPHA:635), gene (e.g. NPC1)..."
+              placeholder="Search 4,357 rare diseases by disease name, ORPHA code (e.g. ORPHA:646), gene (e.g. NPC1)..."
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value)

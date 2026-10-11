@@ -25,7 +25,7 @@ async def candidate_db(tmp_path, monkeypatch):
         await engine.dispose()
 
 
-@pytest.mark.parametrize("other_disease", ["ORPHA:793", "ORPHA:98065"])
+@pytest.mark.parametrize("other_disease", ["ORPHA:586", "ORPHA:399"])
 async def test_generating_another_disease_preserves_candidate(
     candidate_db, monkeypatch, async_client, other_disease
 ):
@@ -34,7 +34,7 @@ async def test_generating_another_disease_preserves_candidate(
     monkeypatch.setattr(indication_service, "get_indication_service", lambda: service)
 
     first = await async_client.post(
-        "/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"}
+        "/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"}
     )
     second = await async_client.post(
         "/api/v1/candidates/generate", json={"disease_id": other_disease}
@@ -59,10 +59,10 @@ async def test_ranking_changes_preserve_drug_identity(candidate_db, monkeypatch,
     service.score_all_for_orpha.side_effect = [scores, list(reversed(scores))]
     monkeypatch.setattr(indication_service, "get_indication_service", lambda: service)
     first = await async_client.post(
-        "/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"}
+        "/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"}
     )
     second = await async_client.post(
-        "/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"}
+        "/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"}
     )
     assert first.status_code == second.status_code == 200
     first_ids = {c["drug_id"]: c["candidate_id"] for c in first.json()["candidates"]}
@@ -83,13 +83,13 @@ async def test_dossier_keeps_selected_candidates(
     monkeypatch.setattr(indication_service, "get_indication_service", lambda: service)
     monkeypatch.setattr(DossierService, "_html_to_pdf", lambda self, html: b"%PDF-test")
     generated = await async_client.post(
-        "/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"}
+        "/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"}
     )
     candidate = generated.json()["candidates"][0]
     response = await async_client.post(
         "/api/v1/dossier/generate",
         json={
-            "disease_id": "ORPHA:635",
+            "disease_id": "ORPHA:646",
             "candidate_ids": [candidate[selection]],
             "include_sections": ["drug_profile"],
         },
@@ -97,7 +97,7 @@ async def test_dossier_keeps_selected_candidates(
     assert response.status_code == 200, response.text
     assert response.json()["dossier_json"]["candidates"] == [candidate]
     if model_ready:
-        service.score_all_for_orpha.assert_called_with("UMLS:C0028042", top_k=20)
+        service.score_all_for_orpha.assert_called_with("UMLS:C0220756", top_k=20)
 
 
 async def test_dossier_rejects_unknown_candidate(candidate_db, monkeypatch, async_client):
@@ -107,7 +107,7 @@ async def test_dossier_rejects_unknown_candidate(candidate_db, monkeypatch, asyn
     response = await async_client.post(
         "/api/v1/dossier/generate",
         json={
-            "disease_id": "ORPHA:635",
+            "disease_id": "ORPHA:646",
             "candidate_ids": ["unknown-candidate"],
             "include_sections": ["drug_profile"],
         },
@@ -124,7 +124,7 @@ async def test_candidate_details_preserve_generated_evidence(
     service.is_ready.return_value = False
     monkeypatch.setattr(indication_service, "get_indication_service", lambda: service)
     response = await async_client.post(
-        "/api/v1/candidates/generate", json={"disease_id": "ORPHA:635"}
+        "/api/v1/candidates/generate", json={"disease_id": "ORPHA:646"}
     )
     assert response.status_code == 200
     for candidate in response.json()["candidates"]:
@@ -147,13 +147,13 @@ async def test_candidate_explanation_uses_disease_context(candidate_db, monkeypa
     }
     monkeypatch.setattr(explanation_service, "get_explanation_service", lambda: explainer)
     response = await async_client.post(
-        "/api/v1/candidates/generate", json={"disease_id": "ORPHA:793"}
+        "/api/v1/candidates/generate", json={"disease_id": "ORPHA:586"}
     )
     candidate = response.json()["candidates"][0]
     explanation = await async_client.get(
         f"/api/v1/candidates/{candidate['candidate_id']}/explanation"
     )
     assert explanation.status_code == 200
-    assert explainer.explain_candidate.call_args.kwargs["disease_id"] == "ORPHA:793"
-    assert explainer.explain_candidate.call_args.kwargs["disease_name"] == "SAPHO syndrome"
+    assert explainer.explain_candidate.call_args.kwargs["disease_id"] == "ORPHA:586"
+    assert explainer.explain_candidate.call_args.kwargs["disease_name"] == "Cystic fibrosis"
     assert explanation.json()["candidate_id"] == candidate["candidate_id"]

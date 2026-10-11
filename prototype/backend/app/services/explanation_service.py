@@ -21,6 +21,7 @@ class ExplanationService:
     def __init__(self):
         self._explainer = Explainer()
         self._cache: dict[tuple, dict[str, Any]] = {}
+        self._cache_inputs: dict[tuple, tuple] = {}
 
     def explain_candidate(
         self,
@@ -33,8 +34,9 @@ class ExplanationService:
     ) -> dict[str, Any]:
         """Generate or retrieve cached explanation."""
         cache_key = (drug_id, disease_id)
+        inputs = (drug_name, disease_name, probability, moa_summary)
 
-        if cache_key in self._cache:
+        if cache_key in self._cache and self._cache_inputs.get(cache_key) == inputs:
             logger.debug("explanation_cache_hit", drug_id=drug_id, disease_id=disease_id)
             return self._cache[cache_key]
 
@@ -48,6 +50,7 @@ class ExplanationService:
                 moa_summary=moa_summary,
             )
             self._cache[cache_key] = explanation
+            self._cache_inputs[cache_key] = inputs
             logger.info(
                 "explanation_generated",
                 drug_id=drug_id,
@@ -59,6 +62,8 @@ class ExplanationService:
             return explanation
 
         except Exception as e:
+            self._cache.pop(cache_key, None)
+            self._cache_inputs.pop(cache_key, None)
             logger.error("explanation_generation_failed", error=str(e))
             return self._fallback_explanation(
                 drug_id, disease_id, drug_name, disease_name, probability, moa_summary
@@ -71,6 +76,7 @@ class ExplanationService:
     def clear_cache(self):
         """Clear the explanation cache."""
         self._cache.clear()
+        self._cache_inputs.clear()
         logger.info("explanation_cache_cleared")
 
     @staticmethod

@@ -159,7 +159,7 @@ class TestIndicationService:
         svc = get_indication_service()
         
         if svc.is_ready():
-            scores = svc.score_all_for_orpha("UMLS:C0028042", top_k=5)
+            scores = svc.score_all_for_orpha("UMLS:C0220756", top_k=5)
             assert isinstance(scores, list)
             for score in scores:
                 assert "drug_id" in score
@@ -190,7 +190,7 @@ class TestKGService:
         svc = KGService()
         
         # This is not an async method
-        genes = svc.get_disease_genes("ORPHA:635")
+        genes = svc.get_disease_genes("ORPHA:646")
         assert isinstance(genes, list)
         # Returns list of gene symbols (strings)
         svc.close()
@@ -201,7 +201,7 @@ class TestKGService:
         
         # This may fail if HAS_PATHWAY doesn't exist
         try:
-            pathways = svc.get_disease_pathways("ORPHA:635")
+            pathways = svc.get_disease_pathways("ORPHA:646")
             assert isinstance(pathways, list)
         except Exception:
             pass  # Expected if HAS_PATHWAY doesn't exist
@@ -277,7 +277,7 @@ class TestExplanationService:
         
         explanation = svc.explain_candidate(
             drug_id="drugcentral:1001",
-            disease_id="ORPHA:635",
+            disease_id="ORPHA:646",
             drug_name="Miglustat",
             disease_name="Niemann-Pick Type C",
             probability=0.85,
@@ -329,7 +329,7 @@ class TestDossierService:
         
         from app.models.disease import DiseaseDetail
         disease = DiseaseDetail(
-            orpha_id="ORPHA:635",
+            orpha_id="ORPHA:646",
             name="Niemann-Pick Type C",
             prevalence=0.000001,
             prevalence_category="<1/1,000,000",
@@ -420,7 +420,7 @@ class TestExplainer:
         # explain method takes different params
         result = explainer.explain(
             drug_id="drugcentral:1001",
-            disease_id="ORPHA:635",
+            disease_id="ORPHA:646",
             drug_name="Miglustat",
             disease_name="Niemann-Pick Type C",
             probability=0.85,
@@ -490,7 +490,7 @@ class TestIndicationServiceDeep:
         svc = get_indication_service()
         
         if svc.is_ready():
-            scores = svc.score_all_for_orpha("UMLS:C0028042", top_k=5)
+            scores = svc.score_all_for_orpha("UMLS:C0220756", top_k=5)
             assert isinstance(scores, list)
             for score in scores:
                 assert "drug_id" in score
@@ -515,7 +515,7 @@ class TestKGServiceDeep:
         svc = KGService()
         
         try:
-            candidates = svc.get_drug_candidates("ORPHA:635", limit=10)
+            candidates = svc.get_drug_candidates("ORPHA:646", limit=10)
             assert isinstance(candidates, list)
         except Exception:
             pass  # Query may fail if graph not fully populated
@@ -525,7 +525,7 @@ class TestKGServiceDeep:
         from app.services.kg_service import KGService
         svc = KGService()
         
-        subgraph = svc.get_kg_subgraph("drugcentral:1001", "ORPHA:635", max_depth=3)
+        subgraph = svc.get_kg_subgraph("drugcentral:1001", "ORPHA:646", max_depth=3)
         assert isinstance(subgraph, dict)
         assert "nodes" in subgraph
         assert "edges" in subgraph
@@ -598,7 +598,7 @@ class TestExplanationServiceDeep:
         for drug_name, drug_id in [("Miglustat", "drugcentral:1001"), ("Sirolimus", "drugcentral:1002"), ("Ivacaftor", "drugcentral:1003")]:
             explanation = svc.explain_candidate(
                 drug_id=drug_id,
-                disease_id="ORPHA:635",
+                disease_id="ORPHA:646",
                 drug_name=drug_name,
                 disease_name="Niemann-Pick Type C",
                 probability=0.75,
@@ -656,7 +656,7 @@ class TestExplainerDeep:
         explainer = Explainer()
         result = explainer.explain(
             drug_id="drugcentral:1001",
-            disease_id="ORPHA:635",
+            disease_id="ORPHA:646",
             drug_name="Miglustat",
             disease_name="Niemann-Pick Type C",
             probability=0.85,

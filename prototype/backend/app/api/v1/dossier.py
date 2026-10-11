@@ -255,8 +255,8 @@ def _html_to_pdf(html: str) -> bytes:
 def _get_mock_disease(orpha_id: str) -> DiseaseDetail | None:
     """Get mock disease data."""
     diseases = {
-        "ORPHA:635": DiseaseDetail(
-            orpha_id="ORPHA:635",
+        "ORPHA:646": DiseaseDetail(
+            orpha_id="ORPHA:646",
             name="Niemann-Pick disease type C",
             prevalence=0.5,
             prevalence_category="1/200,000 - 1/2,000",
@@ -289,8 +289,8 @@ def _get_mock_disease(orpha_id: str) -> DiseaseDetail | None:
             created_at=datetime(2026, 10, 1, 0, 0, 0, tzinfo=UTC),
             updated_at=datetime(2026, 10, 8, 0, 0, 0, tzinfo=UTC),
         ),
-        "ORPHA:793": DiseaseDetail(
-            orpha_id="ORPHA:793",
+        "ORPHA:586": DiseaseDetail(
+            orpha_id="ORPHA:586",
             name="Cystic fibrosis",
             prevalence=3.5,
             prevalence_category="1/200,000 - 1/2,000",
@@ -333,7 +333,7 @@ def _get_mock_disease(orpha_id: str) -> DiseaseDetail | None:
 
 def _get_mock_candidates(disease_id: str) -> list[Candidate]:
     """Get mock candidate data for a disease."""
-    if disease_id == "ORPHA:635":
+    if disease_id == "ORPHA:646":
         return [
             Candidate(
                 candidate_id="cand_001",

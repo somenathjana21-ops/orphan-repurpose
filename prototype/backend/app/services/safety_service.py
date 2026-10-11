@@ -26,6 +26,7 @@ class SafetyService:
         self._faers_service = FaersService()
         self._faers_cache: dict[str, list[DisproportionalityResult]] = {}
         self._admet_cache: dict[str, dict[str, float]] = {}
+        self._admet_smiles: dict[str, str] = {}
 
     async def assess_drug(
         self,
@@ -37,13 +38,15 @@ class SafetyService:
         """Full safety assessment for a drug."""
         # FAERS signals
         faers_signals = []
-        if faers_reports:
+        if faers_reports is not None:
             faers_signals = self._analyze_faers(drug_id, drug_name, reports=faers_reports)
         else:
             # Fetch real FAERS data from the service
             tables = await self._faers_service.get_faers_data(drug_name)
             if tables:
                 faers_signals = self._analyze_faers(drug_id, drug_name, tables=tables)
+
+        self._faers_cache[drug_id] = faers_signals
 
         # ADMET predictions
         admet_predictions = self._predict_admet(drug_id, smiles)
@@ -125,11 +128,12 @@ class SafetyService:
 
     def _predict_admet(self, drug_id: str, smiles: str) -> dict[str, float]:
         """Predict ADMET properties for a drug."""
-        if drug_id in self._admet_cache:
+        if drug_id in self._admet_cache and self._admet_smiles.get(drug_id) == smiles:
             return self._admet_cache[drug_id]
 
         predictions = self.admet_predictor.predict(smiles)
         self._admet_cache[drug_id] = predictions
+        self._admet_smiles[drug_id] = smiles
         return predictions
 
     def _faers_overall(self, signals: list[DisproportionalityResult]) -> str:
@@ -184,6 +188,7 @@ class SafetyService:
         """Clear all caches."""
         self._faers_cache.clear()
         self._admet_cache.clear()
+        self._admet_smiles.clear()
         self._faers_service.clear_cache()
         logger.info("safety_cache_cleared")
 

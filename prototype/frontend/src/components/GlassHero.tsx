@@ -6,9 +6,9 @@ interface GlassHeroProps {
 }
 
 const BENCHMARKS = [
-  { name: 'Niemann-Pick Type C', orphaId: 'ORPHA:635', gene: 'NPC1', tag: 'Benchmark' },
-  { name: 'Cystic Fibrosis', orphaId: 'ORPHA:793', gene: 'CFTR', tag: 'Targeted' },
-  { name: 'Huntington Disease', orphaId: 'ORPHA:98065', gene: 'HTT', tag: 'Neuro' },
+  { name: 'Niemann-Pick Type C', orphaId: 'ORPHA:646', gene: 'NPC1', tag: 'Benchmark' },
+  { name: 'Cystic Fibrosis', orphaId: 'ORPHA:586', gene: 'CFTR', tag: 'Targeted' },
+  { name: 'Huntington Disease', orphaId: 'ORPHA:399', gene: 'HTT', tag: 'Neuro' },
 ]
 
 export function GlassHero({ onSelectBenchmark }: GlassHeroProps) {
@@ -43,14 +43,14 @@ export function GlassHero({ onSelectBenchmark }: GlassHeroProps) {
           {/* CTAs matching reference: Pill Button + Cobalt Squircle '+' Button */}
           <div className="flex items-center gap-3 pt-2">
             <button
-              onClick={() => onSelectBenchmark('ORPHA:635')}
+              onClick={() => onSelectBenchmark('ORPHA:646')}
               className="btn-pill px-6 py-3 text-sm font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 shadow-xs cursor-pointer"
             >
               Try Demo (NPC)
             </button>
 
             <Link
-              to="/diseases/ORPHA:635/candidates"
+              to="/diseases/ORPHA:646/candidates"
               className="w-12 h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center font-bold text-2xl shadow-lg shadow-blue-500/25 transition-all hover:scale-105 active:scale-95 cursor-pointer"
               aria-label="Explore AI Drug Candidates"
               title="Explore AI Drug Candidates"

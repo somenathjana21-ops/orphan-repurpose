@@ -207,12 +207,12 @@ demo: demo-kg demo-candidates demo-explain demo-safety demo-validation demo-doss
 
 demo-kg:
 	@echo "🎬 Demo: KG Disease Browser (Niemann-Pick Type C)"
-	@echo "   Query: ORPHA:635"
+	@echo "   Query: ORPHA:646"
 	@echo "   Expected: Disease detail with genes, pathways, unmet need score"
 
 demo-candidates:
 	@echo "🎬 Demo: Candidate Generation"
-	@echo "   Input: ORPHA:635"
+	@echo "   Input: ORPHA:646"
 	@echo "   Expected: Top 20 drugs with probabilities + CIs"
 
 demo-explain:
@@ -322,12 +322,12 @@ verify-endpoints:
 	@echo ""
 	@echo "Checking API endpoints..."
 	@curl -s -o /dev/null -w "  GET /api/v1/diseases: %{http_code}\n" http://localhost:8000/api/v1/diseases || true
-	@curl -s -o /dev/null -w "  GET /api/v1/diseases/ORPHA:635: %{http_code}\n" http://localhost:8000/api/v1/diseases/ORPHA:635 || true
-	@curl -s -o /dev/null -w "  GET /api/v1/candidates?disease_id=ORPHA:635: %{http_code}\n" "http://localhost:8000/api/v1/candidates?disease_id=ORPHA:635" || true
-	@curl -s -o /dev/null -w "  GET /api/v1/kg/disease/ORPHA:635: %{http_code}\n" http://localhost:8000/api/v1/kg/disease/ORPHA:635 || true
-	@curl -s -o /dev/null -w "  GET /api/v1/literature?disease_id=ORPHA:635: %{http_code}\n" "http://localhost:8000/api/v1/literature?disease_id=ORPHA:635" || true
-	@curl -s -o /dev/null -w "  GET /api/v1/validation: %{http_code}\n" http://localhost:8000/api/v1/validation || true
-	@curl -s -o /dev/null -w "  GET /api/v1/audit: %{http_code}\n" http://localhost:8000/api/v1/audit || true
+	@curl -s -o /dev/null -w "  GET /api/v1/diseases/ORPHA:646: %{http_code}\n" http://localhost:8000/api/v1/diseases/ORPHA:646 || true
+	@curl -s -o /dev/null -w "  POST /api/v1/candidates/generate: %{http_code}\n" -H 'Content-Type: application/json' -d '{"disease_id":"ORPHA:646"}' http://localhost:8000/api/v1/candidates/generate || true
+	@curl -s -o /dev/null -w "  GET /api/v1/kg/diseases/ORPHA:646: %{http_code}\n" http://localhost:8000/api/v1/kg/diseases/ORPHA:646 || true
+	@curl -s -o /dev/null -w "  GET /api/v1/literature?disease_id=ORPHA:646: %{http_code}\n" "http://localhost:8000/api/v1/literature?disease_id=ORPHA:646" || true
+	@curl -s -o /dev/null -w "  GET /api/v1/validation/sessions: %{http_code}\n" http://localhost:8000/api/v1/validation/sessions || true
+	@curl -s -o /dev/null -w "  GET /api/v1/audit/sessions: %{http_code}\n" http://localhost:8000/api/v1/audit/sessions || true
 	@echo ""
 	@echo "Checking frontend..."
 	@curl -s -o /dev/null -w "  GET /: %{http_code}\n" http://localhost:3000/ || echo "  ⚠️  Frontend not running. Start with: make run"

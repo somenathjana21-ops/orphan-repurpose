@@ -15,7 +15,7 @@ import { candidatesApi, diseasesApi } from '../services/api'
 import type { Candidate } from '../types'
 
 export function CandidateList() {
-  const { orphaId = 'ORPHA:635' } = useParams<{ orphaId: string }>()
+  const { orphaId = 'ORPHA:646' } = useParams<{ orphaId: string }>()
   const [validatedIds, setValidatedIds] = useState<Record<string, string>>({})
 
   const { data: disease, isLoading: diseaseLoading } = useQuery({

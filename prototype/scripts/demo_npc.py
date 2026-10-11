@@ -13,43 +13,45 @@ Demonstrates the full OrphanRepurpose workflow:
 Usage:
     python scripts/demo_npc.py
 """
+
 from __future__ import annotations
 
-import json
+import asyncio
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, timezone
 
-# Add backend to path and set cwd so relative paths resolve
+# Add backend to path when running directly from any working directory.
 backend_dir = Path(__file__).resolve().parents[1] / "backend"
 sys.path.insert(0, str(backend_dir))
-import os
-os.chdir(backend_dir)
 
 
-def print_header(title: str):
-    print(f"\n{'='*60}")
+def print_header(title: str) -> None:
+    """Print a prominent stage heading."""
+    print(f"\n{'=' * 60}")
     print(f"  {title}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
 
-def print_section(title: str):
+def print_section(title: str) -> None:
+    """Print a compact subsection heading."""
     print(f"\n--- {title} ---")
 
 
-def main():
+async def main() -> None:
+    """Run the NPC research demo, falling back when the model lacks its concept."""
     print_header("OrphanRepurpose — NPC Demo Pipeline")
-    print(f"Started: {datetime.now(timezone.utc).isoformat()}")
+    print(f"Started: {datetime.now(UTC).isoformat()}")
 
     # 1. Disease Selection
     print_header("Step 1: Disease Selection")
-    disease_id = "ORPHA:635"
+    disease_id = "ORPHA:646"
     disease_name = "Niemann-Pick disease type C"
     print(f"Disease: {disease_name} ({disease_id})")
-    print(f"Prevalence: 0.5 per 100,000 (ultra-rare)")
-    print(f"Genes: NPC1, NPC2")
-    print(f"Existing treatments: Miglustat (symptomatic only)")
-    print(f"Unmet need: HIGH — no disease-modifying therapy")
+    print("Prevalence: 0.5 per 100,000 (ultra-rare)")
+    print("Genes: NPC1, NPC2")
+    print("Existing treatments: Miglustat (symptomatic only)")
+    print("Unmet need: HIGH — no disease-modifying therapy")
 
     # 2. Candidate Generation
     print_header("Step 2: Candidate Generation")
@@ -57,22 +59,20 @@ def main():
         from app.services.indication_service import get_indication_service
 
         svc = get_indication_service()
-        if not svc.is_ready():
-            print("ERROR: Indication model not loaded")
-            return
+        ready = svc.is_ready()
+        if ready:
+            print(f"Model: {svc.config.get('architecture', 'unknown')}")
+            print(f"Drugs: {len(svc.drug_smiles)}")
+            print(f"Diseases: {len(svc.disease_map)}")
+            print(f"Temperature: {svc.temperature}")
+            print(f"Conformal q: {svc.conformal_q}")
 
-        print(f"Model: {svc.config.get('architecture', 'unknown')}")
-        print(f"Drugs: {len(svc.drug_smiles)}")
-        print(f"Diseases: {len(svc.disease_map)}")
-        print(f"Temperature: {svc.temperature}")
-        print(f"Conformal q: {svc.conformal_q}")
+        # Match the exact NPC concept; a broader Niemann-Pick key is not equivalent.
+        from app.api.v1.diseases import ORPHA_TO_UMLS
 
-        # Find NPC disease key
         npc_key = None
-        for key in svc.disease_map:
-            if "C0028042" in key or "Niemann" in key:
-                npc_key = key
-                break
+        if ready and ORPHA_TO_UMLS[disease_id] in svc.disease_map:
+            npc_key = ORPHA_TO_UMLS[disease_id]
 
         if npc_key is None:
             print("WARNING: NPC disease not found in model, using fallback")
@@ -83,7 +83,7 @@ def main():
             ]
         else:
             print(f"Disease key: {npc_key}")
-            scores = svc.score_drugs(npc_key, top_k=5)
+            scores = svc.score_all_for_orpha(npc_key, top_k=5)
             candidates = []
             for s in scores:
                 drug_id = s["drug_id"]
@@ -91,21 +91,40 @@ def main():
                 # Try to get drug name from DrugCentral data
                 try:
                     import pandas as pd
-                    dc_path = Path("prototype/data/processed/drugcentral/drugcentral_fda_approved.parquet")
+
+                    from app.core.config import settings
+
+                    dc_path = (
+                        Path(settings.PROCESSED_DATA_DIR)
+                        / "drugcentral/drugcentral_fda_approved.parquet"
+                    )
                     if dc_path.exists():
                         df = pd.read_parquet(dc_path)
-                        row = df[df["struct_id"] == drug_id.split(":")[-1]]
+                        row = df[df["struct_id"].astype(str) == drug_id.split(":")[-1]]
                         if len(row) > 0:
                             name = row.iloc[0].get("name", name)
                 except Exception:
                     pass
-                candidates.append({
-                    "drug_id": drug_id,
-                    "drug_name": name,
-                    "probability": s["probability"],
-                    "ci_lower": s["ci_lower"],
-                    "ci_upper": s["ci_upper"],
-                })
+                candidates.append(
+                    {
+                        "drug_id": drug_id,
+                        "drug_name": name,
+                        "probability": s["probability"],
+                        "ci_lower": s["ci_lower"],
+                        "ci_upper": s["ci_upper"],
+                    }
+                )
+
+        from app.api.v1.candidates import _candidate_from_score
+
+        cand_objs = [
+            _candidate_from_score(
+                i + 1,
+                {**c, "ci_lower": c.get("ci_lower", 0.0), "ci_upper": c.get("ci_upper", 1.0)},
+                disease_id,
+            )
+            for i, c in enumerate(candidates[:5])
+        ]
 
         print(f"\nTop {len(candidates)} candidates:")
         for i, c in enumerate(candidates, 1):
@@ -114,6 +133,7 @@ def main():
     except Exception as e:
         print(f"ERROR in candidate generation: {e}")
         import traceback
+
         traceback.print_exc()
         return
 
@@ -134,15 +154,15 @@ def main():
                 drug_name=top["drug_name"],
                 disease_name=disease_name,
                 probability=top["probability"],
-                moa_summary="Inhibits glucosylceramide synthase, reducing glycosphingolipid accumulation",
+                moa_summary=cand_objs[0].moa_summary,
             )
 
             print(f"\n  KG Paths: {len(explanation.get('kg_paths', []))}")
             for i, path in enumerate(explanation.get("kg_paths", [])[:3]):
                 nodes = " → ".join([n["name"] for n in path.get("nodes", [])])
-                print(f"    Path {i+1} (score={path.get('score', 0):.3f}): {nodes}")
+                print(f"    Path {i + 1} (score={path.get('score', 0):.3f}): {nodes}")
 
-            print(f"\n  SHAP Values (top 5):")
+            print("\n  SHAP Values (top 5):")
             shap = explanation.get("shap_values", {})
             for feat, val in list(shap.items())[:5]:
                 print(f"    {feat}: {val:+.4f}")
@@ -151,12 +171,13 @@ def main():
             for cf in explanation.get("counterfactuals", [])[:2]:
                 print(f"    {cf.get('description', '')[:100]}...")
 
-            print(f"\n  LLM Rationale:")
+            print("\n  LLM Rationale:")
             print(f"    {explanation.get('llm_rationale', 'N/A')[:200]}...")
 
     except Exception as e:
         print(f"ERROR in explanation: {e}")
         import traceback
+
         traceback.print_exc()
 
     # 4. Safety Assessment
@@ -174,13 +195,14 @@ def main():
             smiles = ""
             try:
                 from app.services.indication_service import get_indication_service
+
                 ind_svc = get_indication_service()
                 if ind_svc.is_ready():
                     smiles = ind_svc.drug_smiles.get(top["drug_id"], "")
             except Exception:
                 pass
 
-            safety = safety_svc.assess_drug(
+            safety = await safety_svc.assess_drug(
                 drug_id=top["drug_id"],
                 drug_name=top["drug_name"],
                 smiles=smiles,
@@ -188,7 +210,10 @@ def main():
 
             print(f"\n  FAERS Signals: {len(safety.get('faers_signals', []))}")
             for sig in safety.get("faers_signals", [])[:3]:
-                print(f"    {sig.get('meddra_pt')}: ROR={sig.get('ror')}, PRR={sig.get('prr')}, BCPNN={sig.get('bcpnn')}")
+                print(
+                    f"    {sig.get('meddra_pt')}: ROR={sig.get('ror')}, "
+                    f"PRR={sig.get('prr')}, BCPNN={sig.get('bcpnn')}"
+                )
 
             print(f"\n  ADMET Predictions: {len(safety.get('admet_predictions', {}))} endpoints")
             admet = safety.get("admet_predictions", {})
@@ -205,39 +230,29 @@ def main():
     except Exception as e:
         print(f"ERROR in safety assessment: {e}")
         import traceback
+
         traceback.print_exc()
 
     # 5. Dossier Generation
     print_header("Step 5: Dossier Generation")
     try:
-        from app.services.dossier_service import get_dossier_service
         from app.api.v1.diseases import _DISEASE_BY_ID, _to_detail
-        from app.models.disease import Candidate
+        from app.services.dossier_service import get_dossier_service
 
         dossier_svc = get_dossier_service()
-        disease = _to_detail(_DISEASE_BY_ID.get(disease_id, {}))
+        disease = _to_detail(_DISEASE_BY_ID[disease_id])
 
         if disease and candidates:
-            # Build candidate objects
-            cand_objs = []
-            for i, c in enumerate(candidates[:5]):
-                cand_objs.append(Candidate(
-                    candidate_id=f"cand_{i+1:03d}",
-                    drug_id=c["drug_id"],
-                    drug_name=c["drug_name"],
-                    indication_probability=c["probability"],
-                    confidence_interval=[c.get("ci_lower", 0.0), c.get("ci_upper", 1.0)],
-                    moa_summary=c.get("moa_summary", "Mechanism not annotated"),
-                    safety_flags={"faers_signals": [], "admet_predictions": {}, "contraindications": [], "overall": "pass"},
-                    kg_paths=[],
-                    llm_rationale="Model-predicted repurposing candidate.",
-                    shap_values={},
-                ))
-
             result = dossier_svc.generate_dossier(
                 disease=disease,
                 candidates=cand_objs,
-                sections=["background", "drug_profile", "mechanistic_rationale", "preclinical_plan", "regulatory_strategy"],
+                sections=[
+                    "background",
+                    "drug_profile",
+                    "mechanistic_rationale",
+                    "preclinical_plan",
+                    "regulatory_strategy",
+                ],
                 audit_trail_id="demo-npc-001",
             )
 
@@ -247,14 +262,19 @@ def main():
 
             # Save PDF
             import base64
-            pdf_path = Path("prototype/data/npc_dossier.pdf")
-            pdf_path.parent.mkdir(parents=True, exist_ok=True)
-            pdf_path.write_bytes(base64.b64decode(result["pdf_base64"]))
-            print(f"  PDF saved to: {pdf_path}")
+
+            if result["pdf_base64"]:
+                pdf_path = backend_dir.parent / "data" / "npc_dossier.pdf"
+                pdf_path.parent.mkdir(parents=True, exist_ok=True)
+                pdf_path.write_bytes(base64.b64decode(result["pdf_base64"]))
+                print(f"  PDF saved to: {pdf_path}")
+            else:
+                print("  PDF renderer unavailable; JSON dossier remains available.")
 
     except Exception as e:
         print(f"ERROR in dossier generation: {e}")
         import traceback
+
         traceback.print_exc()
 
     # 6. Validation
@@ -266,12 +286,12 @@ def main():
         session_id = "demo-npc-session-001"
 
         # Record validation
-        entry1 = audit_svc.add_entry(
+        entry1 = await audit_svc.add_entry(
             session_id=session_id,
             entry_type="validation",
             user="Dr. Smith (Neurologist)",
             data={
-                "candidate_id": "cand_001",
+                "candidate_id": cand_objs[0].candidate_id if cand_objs else None,
                 "assessment": "plausible",
                 "rationale": "Miglustat has known safety profile and plausible mechanism for NPC.",
             },
@@ -279,12 +299,12 @@ def main():
         print(f"  Validation recorded: {entry1.hash[:16]}...")
 
         # Record self-assessment
-        entry2 = audit_svc.add_entry(
+        entry2 = await audit_svc.add_entry(
             session_id=session_id,
             entry_type="self_assessment",
             user="self",
             data={
-                "candidate_id": "cand_001",
+                "candidate_id": cand_objs[0].candidate_id if cand_objs else None,
                 "efficacy": 7,
                 "safety": 6,
                 "feasibility": 8,
@@ -294,29 +314,30 @@ def main():
         print(f"  Self-assessment recorded: {entry2.hash[:16]}...")
 
         # Verify
-        result = audit_svc.verify(session_id)
+        result = await audit_svc.verify(session_id)
         print(f"  Audit trail valid: {result['valid']}")
         print(f"  Entries: {result.get('entry_count', 0)}")
 
     except Exception as e:
         print(f"ERROR in validation: {e}")
         import traceback
+
         traceback.print_exc()
 
     # Summary
     print_header("Demo Complete")
-    print(f"Finished: {datetime.now(timezone.utc).isoformat()}")
-    print(f"\nPipeline summary:")
+    print(f"Finished: {datetime.now(UTC).isoformat()}")
+    print("\nPipeline summary:")
     print(f"  Disease: {disease_name}")
     print(f"  Candidates: {len(candidates)}")
     print(f"  Top candidate: {candidates[0]['drug_name'] if candidates else 'N/A'}")
     print(f"  Model probability: {candidates[0]['probability']:.3f}" if candidates else "  N/A")
-    print(f"  Explanation: KG paths, SHAP, counterfactuals, LLM rationale")
-    print(f"  Safety: FAERS signals, ADMET predictions, contraindications")
-    print(f"  Dossier: PDF + JSON with credibility map")
-    print(f"  Validation: Immutable audit trail with hash chain")
-    print(f"\nAll outputs require human expert review before any regulatory use.")
+    print("  Explanation: KG paths, SHAP, counterfactuals, LLM rationale")
+    print("  Safety: FAERS signals, ADMET predictions, contraindications")
+    print("  Dossier: PDF + JSON with credibility map")
+    print("  Validation: Immutable audit trail with hash chain")
+    print("\nAll outputs require human expert review before any regulatory use.")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

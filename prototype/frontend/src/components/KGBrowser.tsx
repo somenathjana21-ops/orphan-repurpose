@@ -69,7 +69,7 @@ export function KGBrowser() {
 
           <div className="flex items-center gap-2">
             <Link
-              to="/diseases/ORPHA:635/candidates"
+              to="/diseases/ORPHA:646/candidates"
               className="btn-cobalt text-xs py-2.5 px-4 rounded-xl shadow-md shadow-blue-500/20"
             >
               <Sparkles className="h-3.5 w-3.5 mr-1.5" />
