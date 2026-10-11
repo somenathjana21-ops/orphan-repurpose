@@ -11,6 +11,7 @@ Provides:
 
 from __future__ import annotations
 
+from itertools import islice
 from pathlib import Path
 from typing import Any
 
@@ -152,6 +153,8 @@ class KGPathExtractor:
 
     def extract_paths(self, drug_id: str, disease_id: str, k: int = 5) -> list[KGPath]:
         """Extract k-shortest paths from drug to disease using Yen's algorithm."""
+        if k <= 0:
+            return []
         self._load_graph()
 
         if self._graph is None or self._graph.number_of_nodes() == 0:
@@ -164,10 +167,7 @@ class KGPathExtractor:
             import networkx as nx
 
             paths = []
-            for path_nodes in nx.shortest_simple_paths(self._graph, drug_id, disease_id):
-                if len(paths) >= k:
-                    break
-
+            for path_nodes in islice(nx.shortest_simple_paths(self._graph, drug_id, disease_id), k):
                 # Build KGPath
                 kg_nodes = []
                 kg_edges = []

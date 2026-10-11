@@ -140,11 +140,11 @@ class CrossAttentionFusion(nn.Module):
         s = disease_emb.unsqueeze(1)  # [B, 1, D]
 
         # drug attends to disease
-        d_att, _ = self.drug_to_disease(d, s, s)
+        d_att, _ = self.drug_to_disease(d, s, s, need_weights=False)
         d_fused = self.norm1(d + d_att).squeeze(1)
 
         # disease attends to drug
-        s_att, _ = self.disease_to_drug(s, d, d)
+        s_att, _ = self.disease_to_drug(s, d, d, need_weights=False)
         s_fused = self.norm2(s + s_att).squeeze(1)
 
         gate = torch.sigmoid(self.gate(torch.cat([d_fused, s_fused], dim=-1)))

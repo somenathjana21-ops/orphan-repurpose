@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import asyncio
 import hashlib
 import re
 from typing import Any
@@ -210,20 +213,22 @@ async def summarize_literature(pmids: list[str]):
         if cached is not None:
             return cached
 
-        # Fetch abstracts via efetch
-        try:
-            abstracts = await _efetch_abstracts(pmids)
-        except Exception as e:
-            logger.warning("efetch_failed", error=str(e))
-            abstracts = {}
+        async def fetch_abstracts() -> dict[str, str]:
+            try:
+                return await _efetch_abstracts(pmids)
+            except Exception as e:
+                logger.warning("efetch_failed", error=str(e))
+                return {}
 
-        # Fetch metadata via esummary for titles/journals
-        try:
-            summaries_meta = await _esummary(pmids)
-            meta_map = {s["pmid"]: s for s in summaries_meta}
-        except Exception as e:
-            logger.warning("esummary_for_summarize_failed", error=str(e))
-            meta_map = {}
+        async def fetch_metadata() -> dict[str, dict[str, Any]]:
+            try:
+                summaries_meta = await _esummary(pmids)
+                return {s["pmid"]: s for s in summaries_meta}
+            except Exception as e:
+                logger.warning("esummary_for_summarize_failed", error=str(e))
+                return {}
+
+        abstracts, meta_map = await asyncio.gather(fetch_abstracts(), fetch_metadata())
 
         results = []
         for pmid in pmids:
