@@ -204,7 +204,9 @@ def get_subgraph(
 
         # Verify drug exists
         drug_check = kg.execute(
-            "MATCH (d:Drug {id: $drug_id}) RETURN d.id as id",
+            "MATCH (d:Drug {id: $drug_id}) RETURN d.id as id, d.name as name, "
+            "d.approval_status as approval_status, d.moa_classes as moa_classes, "
+            "d.smiles as smiles, d.molecular_weight as molecular_weight",
             {"drug_id": drug_id},
         )
         if not drug_check:
@@ -212,7 +214,9 @@ def get_subgraph(
 
         # Verify disease exists
         disease_check = kg.execute(
-            "MATCH (d:Disease {id: $disease_id}) RETURN d.id as id",
+            "MATCH (d:Disease {id: $disease_id}) RETURN d.id as id, d.name as name, "
+            "d.prevalence as prevalence, d.unmet_need_score as unmet_need_score, "
+            "d.description as description",
             {"disease_id": disease_id},
         )
         if not disease_check:
@@ -222,6 +226,7 @@ def get_subgraph(
         # Structure: {data: {id, label, type, ...properties}}
         nodes_dict: dict[str, dict[str, Any]] = {}
         edges_list: list[dict[str, Any]] = []
+        edge_keys: set[tuple[str, str, str]] = set()
 
         def add_node(node_id: str, label: str, node_type: str, name: str, **properties):
             if node_id not in nodes_dict:
@@ -236,19 +241,14 @@ def get_subgraph(
                 }
 
         def add_edge(source: str, target: str, edge_type: str, **properties):
-            edge_id = f"{source}-{edge_type}-{target}"
-            # Avoid duplicate edges
-            for existing in edges_list:
-                if (
-                    existing["data"]["source"] == source
-                    and existing["data"]["target"] == target
-                    and existing["data"]["label"] == edge_type
-                ):
-                    return
+            key = (source, target, edge_type)
+            if key in edge_keys:
+                return
+            edge_keys.add(key)
             edges_list.append(
                 {
                     "data": {
-                        "id": edge_id,
+                        "id": f"{source}-{edge_type}-{target}",
                         "source": source,
                         "target": target,
                         "label": edge_type,
@@ -339,27 +339,20 @@ def get_subgraph(
 
         # 4. Connect Targets to Genes via gene symbol match
         # (Target.gene property matches Gene.symbol)
-        target_gene_connections = []
+        genes_by_symbol: dict[str, list[dict[str, Any]]] = {}
+        for g_row in disease_genes:
+            genes_by_symbol.setdefault(g_row["symbol"], []).append(g_row)
         for t_row in drug_targets:
             target_gene = t_row.get("gene")
             if not target_gene:
                 continue
-            for g_row in disease_genes:
-                if g_row["symbol"] == target_gene:
-                    # Connect Target -> Gene (via gene symbol match)
-                    add_edge(
-                        t_row["target_id"],
-                        g_row["gene_id"],
-                        "ASSOCIATED_WITH",
-                        match_type="gene_symbol",
-                    )
-                    target_gene_connections.append(
-                        {
-                            "target_id": t_row["target_id"],
-                            "gene_id": g_row["gene_id"],
-                            "gene_symbol": target_gene,
-                        }
-                    )
+            for g_row in genes_by_symbol.get(target_gene, []):
+                add_edge(
+                    t_row["target_id"],
+                    g_row["gene_id"],
+                    "ASSOCIATED_WITH",
+                    match_type="gene_symbol",
+                )
 
         # 5. Also find targets that connect through pathways or other diseases
         # Drug -> Target -> (gene) -> Gene <- Disease (via HAS_GENE from other diseases)
@@ -391,13 +384,7 @@ def get_subgraph(
                 )
 
         # Add the drug and disease nodes themselves
-        drug_info = kg.execute(
-            "MATCH (d:Drug {id: $drug_id}) RETURN d.id as id, d.name as name, "
-            "d.approval_status as approval_status, d.moa_classes as moa_classes, "
-            "d.smiles as smiles, d.molecular_weight as molecular_weight",
-            {"drug_id": drug_id},
-        )
-        for row in drug_info:
+        for row in drug_check:
             add_node(
                 drug_id,
                 drug_id,
@@ -409,13 +396,7 @@ def get_subgraph(
                 molecular_weight=row.get("molecular_weight"),
             )
 
-        disease_info = kg.execute(
-            "MATCH (d:Disease {id: $disease_id}) RETURN d.id as id, d.name as name, "
-            "d.prevalence as prevalence, d.unmet_need_score as unmet_need_score, "
-            "d.description as description",
-            {"disease_id": disease_id},
-        )
-        for row in disease_info:
+        for row in disease_check:
             add_node(
                 disease_id,
                 disease_id,
@@ -519,7 +500,8 @@ def list_drugs(
 
         if query:
             where_conditions.append(
-                "(toLower(d.name) CONTAINS toLower($query) OR toLower(d.id) CONTAINS toLower($query))"
+                "(toLower(d.name) CONTAINS toLower($query) "
+                "OR toLower(d.id) CONTAINS toLower($query))"
             )
             params["query"] = query
 
@@ -686,7 +668,8 @@ def list_diseases(
 
         if query:
             where_conditions.append(
-                "(toLower(d.name) CONTAINS toLower($query) OR toLower(d.id) CONTAINS toLower($query))"
+                "(toLower(d.name) CONTAINS toLower($query) "
+                "OR toLower(d.id) CONTAINS toLower($query))"
             )
             params["query"] = query
 

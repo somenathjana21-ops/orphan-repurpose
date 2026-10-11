@@ -16,22 +16,20 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import torch
-import torch.nn.functional as F
 import structlog
+import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 
+from app.ml.featurizer import ATOM_FEATURE_DIM, batch_graphs, smiles_to_graph
 from app.ml.indication_model import (
-    IndicationModel,
-    GraphSAGEDrugEncoder,
-    DiseaseEncoder,
-    CrossAttentionFusion,
-    FocalLoss,
-    TemperatureScaler,
     ConformalPredictor,
+    CrossAttentionFusion,
+    DiseaseEncoder,
+    FocalLoss,
+    GraphSAGEDrugEncoder,
+    TemperatureScaler,
 )
-from app.ml.featurizer import smiles_to_graph
 
 logger = structlog.get_logger()
 SEED = 42
@@ -39,22 +37,27 @@ SEED = 42
 
 def precompute_drug_embeddings(drug_smiles: dict, hidden_dim: int = 64, batch_size: int = 256):
     """Pre-compute drug embeddings using GraphSAGE encoder."""
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
     encoder = GraphSAGEDrugEncoder(
-        node_feature_dim=78,
+        node_feature_dim=ATOM_FEATURE_DIM,
         hidden_dim=hidden_dim,
         num_layers=2,
         dropout=0.0,
     )
     encoder.eval()
-    
+
     embeddings = {}
+    drug_ids = list(drug_smiles)
     with torch.no_grad():
-        for did, smi in drug_smiles.items():
-            feats, edge_index = smiles_to_graph(smi)
-            batch = torch.zeros(feats.size(0), dtype=torch.long)
-            emb = encoder(feats, edge_index, batch)
-            embeddings[did] = emb.squeeze(0).numpy()
-    
+        for start in range(0, len(drug_ids), batch_size):
+            ids = drug_ids[start : start + batch_size]
+            feats, edge_index, batch = batch_graphs(
+                [smiles_to_graph(drug_smiles[did]) for did in ids]
+            )
+            encoded = encoder(feats, edge_index, batch).numpy()
+            embeddings.update(zip(ids, encoded, strict=True))
+
     return embeddings
 
 
@@ -73,42 +76,36 @@ def train_fast(
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
-    
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info("training_start", device=str(device), hidden_dim=hidden_dim)
-    
+
     # Load KG embeddings
     with open(kg_embeddings_path, "rb") as f:
         kg = pickle.load(f)
-    
+
     disease_embs = kg["embeddings"]["Disease"]
     disease_map = kg["node_id_maps"]["Disease"]
-    
+
     # Load data
     dc = processed_dir / "drugcentral"
     fda = pd.read_parquet(dc / "drugcentral_fda_approved.parquet")
     indications = pd.read_parquet(dc / "drugcentral_indications.parquet")
-    
+
     # Build drug smiles map
     drug_smiles = {}
     for _, row in fda.iterrows():
         struct_id = str(row["struct_id"])
-        if struct_id.startswith("chembl:"):
-            did = struct_id
-        else:
-            did = f"drugcentral:{struct_id}"
+        did = struct_id if struct_id.startswith("chembl:") else f"drugcentral:{struct_id}"
         smi = row.get("smiles")
         if isinstance(smi, str) and smi:
             drug_smiles[did] = smi
-    
+
     # Build positive pairs
     pos_pairs = set()
     for _, row in indications.iterrows():
         struct_id = str(row["struct_id"])
-        if struct_id.startswith("chembl:"):
-            did = struct_id
-        else:
-            did = f"drugcentral:{struct_id}"
+        did = struct_id if struct_id.startswith("chembl:") else f"drugcentral:{struct_id}"
         if did not in drug_smiles:
             continue
         disease_id = row.get("disease_id")
@@ -121,9 +118,9 @@ def train_fast(
                 d_id = f"UMLS:{cui}"
                 if d_id in disease_map:
                     pos_pairs.add((did, d_id))
-    
+
     logger.info("positive_pairs", count=len(pos_pairs))
-    
+
     # Build negative pairs
     all_drugs = list(drug_smiles.keys())
     all_diseases = list(disease_map.keys())
@@ -136,26 +133,26 @@ def train_fast(
         cand = (rng.choice(all_drugs), rng.choice(all_diseases))
         if cand not in pos_pairs:
             neg_pairs.add(cand)
-    
+
     pairs = [(d, s, 1.0) for d, s in pos_pairs] + [(d, s, 0.0) for d, s in neg_pairs]
     rng.shuffle(pairs)
-    
+
     # Split
     pos_list = [p for p in pairs if p[2] == 1.0]
     neg_list = [p for p in pairs if p[2] == 0.0]
-    
+
     def split(lst):
         k = len(lst)
         a = int(0.7 * k)
         b = int(0.85 * k)
         return lst[:a], lst[a:b], lst[b:]
-    
+
     ptr, pva, pcal = split(pos_list)
     ntr, nva, ncal = split(neg_list)
     train_pairs = ptr + ntr
     val_pairs = pva + nva
     cal_pairs = pcal + ncal
-    
+
     # Downsample for speed
     if len(train_pairs) > max_train_pairs:
         rng2 = random.Random(SEED)
@@ -165,23 +162,25 @@ def train_fast(
         rng2 = random.Random(SEED + 1)
         rng2.shuffle(val_pairs)
         val_pairs = val_pairs[:max_val_pairs]
-    
+
     logger.info(
         "splits",
         train=len(train_pairs), val=len(val_pairs), cal=len(cal_pairs),
     )
-    
+
     # Pre-compute drug embeddings
     logger.info("precomputing_drug_embeddings", count=len(drug_smiles))
-    drug_emb_cache = precompute_drug_embeddings(drug_smiles, hidden_dim=hidden_dim)
+    drug_emb_cache = precompute_drug_embeddings(
+        drug_smiles, hidden_dim=hidden_dim, batch_size=batch_size
+    )
     logger.info("drug_embeddings_ready")
-    
+
     # Build disease tensor cache
     disease_tensor_cache = {}
     for did in all_diseases:
         idx = disease_map[did]
         disease_tensor_cache[did] = torch.tensor(disease_embs[idx], dtype=torch.float32)
-    
+
     # Create model components
     disease_encoder = DiseaseEncoder(kg_dim=256, hidden_dim=hidden_dim, dropout=0.1).to(device)
     fusion = CrossAttentionFusion(embed_dim=hidden_dim, num_heads=4, dropout=0.1).to(device)
@@ -195,13 +194,13 @@ def train_fast(
         torch.nn.Dropout(0.1),
         torch.nn.Linear(64, 1),
     ).to(device)
-    
+
     # Combine all parameters
-    params = list(disease_encoder.parameters()) + list(fusion.parameters()) + list(head.parameters())
+    params = [*disease_encoder.parameters(), *fusion.parameters(), *head.parameters()]
     optimizer = torch.optim.AdamW(params, lr=lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5)
     criterion = FocalLoss(gamma=2.0, alpha=0.25)
-    
+
     def run_batch(batch):
         drug_embs = []
         disease_embs_list = []
@@ -211,22 +210,22 @@ def train_fast(
                 drug_embs.append(torch.tensor(drug_emb_cache[did], dtype=torch.float32))
                 disease_embs_list.append(disease_tensor_cache[sid])
                 labels.append(y)
-        
+
         if not drug_embs:
             return None, None
-        
+
         d_emb = torch.stack(drug_embs).to(device)
         s_emb = torch.stack(disease_embs_list).to(device)
         target = torch.tensor(labels, dtype=torch.float32, device=device)
-        
+
         # Forward: drug_emb is already encoded (precomputed to hidden_dim),
         # disease KG embeddings (256-d) need projection to hidden_dim
         s_encoded = disease_encoder(s_emb)  # 256 -> hidden_dim
         fused = fusion(d_emb, s_encoded)  # both hidden_dim
         logits = head(fused).squeeze(-1)
-        
+
         return logits, target
-    
+
     def evaluate(pair_list):
         disease_encoder.eval()
         fusion.eval()
@@ -242,12 +241,12 @@ def train_fast(
         if not all_logits:
             return torch.zeros(0), torch.zeros(0)
         return torch.cat(all_logits), torch.cat(all_targets)
-    
+
     def metrics(logits, targets):
         probs = torch.sigmoid(logits)
         auroc = auprc = float("nan")
         try:
-            from sklearn.metrics import roc_auc_score, average_precision_score
+            from sklearn.metrics import average_precision_score, roc_auc_score
             y = targets.detach().cpu().numpy()
             p = probs.detach().cpu().numpy()
             if len(set(y.tolist())) > 1:
@@ -266,24 +265,24 @@ def train_fast(
                     acc = targets[mask].mean().item()
                     ece += (mask.sum().item() / len(probs)) * abs(conf - acc)
         return {"auroc": auroc, "auprc": auprc, "ece": ece}
-    
+
     # Training loop
     best_auprc = -1.0
     best_state = None
     patience = 0
-    
+
     for epoch in range(epochs):
         disease_encoder.train()
         fusion.train()
         head.train()
-        
+
         rng = random.Random(SEED + epoch)
         shuffled = train_pairs[:]
         rng.shuffle(shuffled)
-        
+
         total_loss = 0.0
         n_batches = 0
-        
+
         for i in range(0, len(shuffled), batch_size):
             batch = shuffled[i:i + batch_size]
             optimizer.zero_grad()
@@ -296,9 +295,9 @@ def train_fast(
             optimizer.step()
             total_loss += loss.item()
             n_batches += 1
-        
+
         scheduler.step()
-        
+
         if epoch % 2 == 0 or epoch == epochs - 1:
             disease_encoder.eval()
             fusion.eval()
@@ -316,7 +315,9 @@ def train_fast(
             if m["auprc"] == m["auprc"] and m["auprc"] > best_auprc:
                 best_auprc = m["auprc"]
                 best_state = {
-                    "disease_encoder": {k: v.clone() for k, v in disease_encoder.state_dict().items()},
+                    "disease_encoder": {
+                        k: v.clone() for k, v in disease_encoder.state_dict().items()
+                    },
                     "fusion": {k: v.clone() for k, v in fusion.state_dict().items()},
                     "head": {k: v.clone() for k, v in head.state_dict().items()},
                 }
@@ -326,13 +327,13 @@ def train_fast(
             if patience >= 5:
                 logger.info("early_stopping", epoch=epoch)
                 break
-    
+
     # Load best
     if best_state is not None:
         disease_encoder.load_state_dict(best_state["disease_encoder"])
         fusion.load_state_dict(best_state["fusion"])
         head.load_state_dict(best_state["head"])
-    
+
     # Calibration
     disease_encoder.eval()
     fusion.eval()
@@ -343,19 +344,25 @@ def train_fast(
     cal_probs = torch.sigmoid(scaler(cal_logits)) if len(cal_logits) else torch.zeros(0)
     conformal = ConformalPredictor(coverage=0.90)
     conformal.calibrate(cal_probs, cal_targets)
-    
+
     test_logits, test_targets = evaluate(cal_pairs)
     test_metrics = metrics(scaler(test_logits) if len(test_logits) else test_logits, test_targets)
-    
+
     logger.info(
         "final_metrics",
         temperature=round(temp, 4),
         conformal_q=round(conformal.q_hat or 0.0, 4),
-        auprc=round(test_metrics["auprc"], 4) if test_metrics["auprc"] == test_metrics["auprc"] else None,
-        auroc=round(test_metrics["auroc"], 4) if test_metrics["auroc"] == test_metrics["auroc"] else None,
+        auprc=(
+            round(test_metrics["auprc"], 4)
+            if test_metrics["auprc"] == test_metrics["auprc"] else None
+        ),
+        auroc=(
+            round(test_metrics["auroc"], 4)
+            if test_metrics["auroc"] == test_metrics["auroc"] else None
+        ),
         ece=round(test_metrics["ece"], 4),
     )
-    
+
     # Save checkpoint
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "wb") as f:
